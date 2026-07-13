@@ -1,0 +1,38 @@
+Options -Indexes
+ServerSignature Off
+
+# ── Security headers ───────────────────────────────────────
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Permissions-Policy "camera=*"
+    <FilesMatch "\.php$">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "POST, GET, OPTIONS"
+        Header set Access-Control-Allow-Headers "Content-Type"
+    </FilesMatch>
+</IfModule>
+
+# ── MIME types ─────────────────────────────────────────────
+<IfModule mod_mime.c>
+    AddType image/gif  .gif
+    AddType image/jpeg .jpg .jpeg
+    AddType image/png  .png
+    AddType application/javascript .js
+    AddType application/wasm .wasm
+</IfModule>
+
+# ── Compression ────────────────────────────────────────────
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+</IfModule>
+
+# ── Block sensitive files ──────────────────────────────────
+<FilesMatch "\.(json|log|sh|env)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order Allow,Deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
