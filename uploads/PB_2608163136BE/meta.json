@@ -1,0 +1,26 @@
+{
+    "session_id": "PB_2608163136BE",
+    "filter": "none",
+    "frame_style": "frame1",
+    "timestamp": 1786892843668,
+    "created_at": "2026-08-16 15:07:23",
+    "ip": "::1",
+    "frame_count": 4,
+    "gif_saved": true,
+    "gif_size": 238428,
+    "gif_saved_at": "2026-08-16 15:07:23",
+    "gdrive_uploaded": true,
+    "gdrive_data": {
+        "success": true,
+        "is_gdrive": false,
+        "message": "Google Drive credentials not configured. Using local session URLs.",
+        "folder_name": "2026-08-16_15-07-23",
+        "google_drive_folder_url": "http:\/\/localhost\/photobooth\/uploads\/PB_2608163136BE\/",
+        "photo_strip_url": "http:\/\/localhost\/photobooth\/uploads\/PB_2608163136BE\/strip.png",
+        "photo1_url": "http:\/\/localhost\/photobooth\/uploads\/PB_2608163136BE\/frame_0.jpg",
+        "photo2_url": "http:\/\/localhost\/photobooth\/uploads\/PB_2608163136BE\/frame_1.jpg",
+        "photo3_url": "http:\/\/localhost\/photobooth\/uploads\/PB_2608163136BE\/frame_2.jpg",
+        "photo4_url": "http:\/\/localhost\/photobooth\/uploads\/PB_2608163136BE\/frame_3.jpg",
+        "gif_url": "http:\/\/localhost\/photobooth\/uploads\/PB_2608163136BE\/boomerang.gif"
+    }
+}

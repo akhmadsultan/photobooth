@@ -1,0 +1,56 @@
+Options -Indexes
+ServerSignature Off
+
+# ── PHP upload limits (covers mod_php 7 & 8) ──────────────
+<IfModule mod_php7.c>
+    php_value upload_max_filesize 25M
+    php_value post_max_size       30M
+    php_value memory_limit        256M
+    php_value max_execution_time  120
+    php_flag  display_errors      Off
+</IfModule>
+<IfModule mod_php8.c>
+    php_value upload_max_filesize 25M
+    php_value post_max_size       30M
+    php_value memory_limit        256M
+    php_value max_execution_time  120
+    php_flag  display_errors      Off
+</IfModule>
+
+# ── Security headers ───────────────────────────────────────
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Permissions-Policy "camera=*"
+    <FilesMatch "\.php$">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "POST, GET, OPTIONS"
+        Header set Access-Control-Allow-Headers "Content-Type"
+    </FilesMatch>
+</IfModule>
+
+# ── MIME types ─────────────────────────────────────────────
+<IfModule mod_mime.c>
+    AddType image/gif  .gif
+    AddType image/jpeg .jpg .jpeg
+    AddType image/png  .png
+    AddType application/javascript .js
+    AddType application/wasm .wasm
+</IfModule>
+
+# ── Compression ────────────────────────────────────────────
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+</IfModule>
+
+# ── Block sensitive files ──────────────────────────────────
+<FilesMatch "\.(json|log|sh|env)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# ── Block script execution in uploads ─────────────────────
+<IfModule mod_php7.c>
+    <Directory "uploads">
+        php_flag engine Off
+    </Directory>
+</IfModule>
