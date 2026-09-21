@@ -17,7 +17,6 @@ const App = (() => {
   let btnDlStrip, btnMkGif, btnSaveGal, btnNewSess, btnDlGif;
   let grProg, grCenter, grLabel, grSub;
   let statusPill, spText;
-  let _selectedFrameIndex = 0;
 
   // Global touchless cursor state
   let gcEl = null, gcProg = null;
@@ -111,9 +110,9 @@ const App = (() => {
           if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
             msg = 'Izin kamera ditolak. Silakan klik ikon gembok/kamera di sebelah kiri bilah alamat browser Anda dan aktifkan izin kamera.';
           } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-            msg = 'Perangkat kamera tidak ditemukan. Pastikan kamera terpasang dengan benar.';
+            msg = 'Kamera tidak ditemukan atau sedang dikunci eksklusif oleh OBS Studio. Jika OBS Studio terbuka, silakan klik tombol "Start Virtual Camera" di OBS, atau tutup OBS Studio lalu klik Coba Hubungkan Kamera.';
           } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-            msg = 'Kamera sedang digunakan oleh aplikasi lain (seperti Zoom, Teams, OBS, dll.). Silakan tutup aplikasi tersebut lalu coba lagi.';
+            msg = 'Kamera sedang digunakan/dikunci oleh OBS Studio, Zoom, atau aplikasi lain. Klik "Start Virtual Camera" di OBS, atau tutup OBS Studio lalu coba lagi.';
           } else if (err.name === 'SecurityError') {
             msg = 'Akses kamera diblokir oleh kebijakan keamanan browser (HTTPS diperlukan). Gunakan localhost atau aktifkan SSL.';
           } else {
@@ -172,7 +171,14 @@ const App = (() => {
   }
 
   async function initCam(){
-    await WebCam.init(document.getElementById('video'));
+    const errEl = document.getElementById('camErr');
+    if (errEl) errEl.style.display = 'none';
+    try {
+      await WebCam.init(document.getElementById('video'));
+      U.toast('Kamera berhasil terhubung!', 'success');
+    } catch(e) {
+      console.error('[App] Manual initCam failed:', e);
+    }
   }
 
   /* ── Gesture frame update (no-op if not ready) ───────── */
@@ -331,6 +337,8 @@ const App = (() => {
     S.photoCount++;
     _updateFrameBadge();
     document.getElementById('stripCt').textContent=`${S.photoCount}/4`;
+    const btnRetake = document.getElementById('btnRetake');
+    if (btnRetake) btnRetake.style.display = 'inline-flex';
 
     U.toast(`Frame ${idx+1} captured`,'success',1200);
 
@@ -345,9 +353,9 @@ const App = (() => {
   }
 
   async function _onComplete(){
-    S.phase='done';
+    S.phase='preview';
     Gesture.setEnabled(false);
-    _setStatus('active','Strip complete!');
+    _setStatus('active','Foto Selesai! Periksa Preview');
     window.SFX?.success?.();
 
     // Show output actions and hide placeholder canvas
@@ -356,16 +364,11 @@ const App = (() => {
     const ph = document.getElementById('stripPh');
     if (ph) ph.style.display = 'none';
 
-    // Auto-trigger the full post-capture workflow
-    const frames    = Strip.getFrames();
-    const sessionId = window.PB_CFG?.sessionId || 'UNKNOWN';
-    try {
-      await Workflow.run(frames, sessionId);
-    } catch(e) {
-      console.error('[App] Workflow error:', e);
-      U.toast('Workflow error: ' + e.message, 'error', 8000);
-      U.toast('Strip complete! Download or save to gallery.','success',4000);
-    }
+    // Make sure strip canvas is visible
+    const cv = document.getElementById('stripCanvas');
+    if (cv) cv.style.display = 'block';
+
+    U.toast('Foto selesai! Periksa hasil di preview, klik "Selesai & Bayar QRIS" untuk lanjut.', 'info', 5000);
     btnCapture.disabled=false;
   }
 
@@ -445,6 +448,72 @@ const App = (() => {
       window.SFX?.click?.();
       if(S.phase==='countdown'||S.phase==='capturing') return;
       _resetSession();
+    });
+
+    document.getElementById('btnRetake')?.addEventListener('click',()=>{
+      window.SFX?.click?.();
+      if(S.phase==='countdown'||S.phase==='capturing') return;
+      const count = Strip.retakeLast();
+      S.photoCount = count;
+      _updateFrameBadge();
+      document.getElementById('stripCt').textContent = `${count}/4`;
+      const btnRetake = document.getElementById('btnRetake');
+      if (count === 0 && btnRetake) {
+        btnRetake.style.display = 'none';
+      }
+      if (S.phase === 'done' || S.phase === 'preview') {
+        S.phase = 'ready';
+        const outActions = document.getElementById('outActions');
+        if (outActions) outActions.style.display = 'none';
+        Gesture.setEnabled(true);
+        Gesture.resume();
+        Gesture.resetCooldown();
+      }
+      if (btnCapture) btnCapture.disabled = false;
+      _setStatus('active', count === 0 ? 'Ready' : `${4 - count} more`);
+      U.toast('Foto terakhir dihapus (retake)', 'info');
+    });
+
+    // ── Show QRIS / Workflow Trigger ─────────────────────────
+    document.getElementById('btnShowQR')?.addEventListener('click', async () => {
+      window.SFX?.click?.();
+      const frames = Strip.getFrames();
+      if (!frames.length) { window.SFX?.error?.(); U.toast('Tidak ada foto untuk diproses', 'warn'); return; }
+      
+      S.phase = 'done';
+      const sessionId = window.PB_CFG?.sessionId || 'UNKNOWN';
+      try {
+        await Workflow.run(frames, sessionId);
+      } catch(e) {
+        console.error('[App] Workflow error:', e);
+        U.toast('Workflow error: ' + e.message, 'error', 8000);
+      }
+    });
+
+    // ── Retake Last from Preview ──────────────────────────────
+    document.getElementById('btnRetakePreview')?.addEventListener('click', () => {
+      window.SFX?.click?.();
+      const count = Strip.retakeLast();
+      S.photoCount = count;
+      _updateFrameBadge();
+      document.getElementById('stripCt').textContent = `${count}/4`;
+      S.phase = 'ready';
+      const outActions = document.getElementById('outActions');
+      if (outActions) outActions.style.display = 'none';
+      Gesture.setEnabled(true);
+      Gesture.resume();
+      Gesture.resetCooldown();
+      if (btnCapture) btnCapture.disabled = false;
+      _setStatus('active', `${4 - count} photo left`);
+      U.toast('Foto terakhir dihapus. Silakan foto ulang!', 'info');
+    });
+
+    // ── Reset All from Preview ───────────────────────────────
+    document.getElementById('btnResetPreview')?.addEventListener('click', () => {
+      window.SFX?.click?.();
+      if (confirm('Ulangi semua foto dari awal? Foto saat ini akan dihapus.')) {
+        _resetSession();
+      }
     });
 
     document.getElementById('btnToggleGesture')?.addEventListener('click',e=>{
@@ -558,37 +627,6 @@ const App = (() => {
     });
 
     // ── QR Screen buttons ──────────────────────────────────
-    // "Kirim ke Video Mapping" — opens confirmation dialog
-    document.getElementById('pbBtnVideoMapping')?.addEventListener('click', () => {
-      window.SFX?.click?.();
-      Workflow.stopCountdown();
-      _selectedFrameIndex = 0; // Default to first photo
-      _renderVMGrid();
-      const dlg = document.getElementById('pbVMDialog');
-      if (dlg) { dlg.style.display = 'flex'; requestAnimationFrame(() => dlg.classList.add('visible')); }
-    });
-
-    // Dialog: Cancel
-    document.getElementById('pbVMCancel')?.addEventListener('click', () => {
-      window.SFX?.click?.();
-      _closeVMDialog();
-      // Resume countdown after cancel
-      Workflow._startCountdown?.();
-    });
-
-    // Dialog: Confirm Send
-    document.getElementById('pbVMConfirm')?.addEventListener('click', async () => {
-      window.SFX?.click?.();
-      _closeVMDialog();
-      await Workflow.sendToVideoMapping(_selectedFrameIndex);
-    });
-
-    // Retry button
-    document.getElementById('pbBtnRetryVM')?.addEventListener('click', async () => {
-      window.SFX?.click?.();
-      await Workflow.sendToVideoMapping(_selectedFrameIndex);
-    });
-
     // Close QR screen — user closes manually, then resets session
     document.getElementById('pbBtnCloseQR')?.addEventListener('click', () => {
       window.SFX?.click?.();
@@ -602,6 +640,8 @@ const App = (() => {
     S.phase='ready'; S.photoCount=0;
     Strip.reset();
     document.getElementById('outActions').style.display='none';
+    const btnRetake = document.getElementById('btnRetake');
+    if (btnRetake) btnRetake.style.display = 'none';
     document.getElementById('stripCt').textContent='0/4';
     document.getElementById('stripPh').style.display='flex';
     document.getElementById('stripCanvas').style.display='none';
@@ -766,45 +806,7 @@ const App = (() => {
     reader.readAsDataURL(file);
   }
 
-  function _renderVMGrid() {
-    const grid = document.getElementById('pbVMGrid');
-    if (!grid) return;
-    grid.innerHTML = '';
-    
-    const frames = Strip.getFrames();
-    frames.forEach((src, idx) => {
-      const item = document.createElement('div');
-      item.className = 'pbvm-item' + (idx === _selectedFrameIndex ? ' selected' : '');
-      item.dataset.index = idx;
-      
-      const img = document.createElement('img');
-      img.src = src;
-      img.alt = `Foto ${idx + 1}`;
-      
-      item.appendChild(img);
-      
-      item.addEventListener('click', () => {
-        window.SFX?.click?.();
-        _selectedFrameIndex = idx;
-        
-        // Update selection UI
-        grid.querySelectorAll('.pbvm-item').forEach(el => {
-          el.classList.remove('selected');
-        });
-        item.classList.add('selected');
-      });
-      
-      grid.appendChild(item);
-    });
-  }
 
-  function _closeVMDialog() {
-    const dlg = document.getElementById('pbVMDialog');
-    if (dlg) {
-      dlg.classList.remove('visible');
-      setTimeout(() => { dlg.style.display = 'none'; }, 300);
-    }
-  }
 
   document.addEventListener('DOMContentLoaded',()=>{
     // Boot immediately to enable touchless gesturing on the Start page

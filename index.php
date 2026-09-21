@@ -1,6 +1,6 @@
 <?php
 /**
- * Photobooth Undersea — Gen-Z Premium Edition v2
+ * Immersive Fiesta Photobooth — Purple Galaxy Edition v2
  * WebRTC + MediaPipe Hand Gesture Recognition
  */
 session_start();
@@ -15,11 +15,12 @@ $sid = $_SESSION['pb_session'];
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Photobooth Undersea</title>
-<link rel="icon" type="image/png" href="assets/logo-photobooth-undersea.png">
+<title>Immersive Fiesta Photobooth</title>
+<meta name="description" content="Immersive Fiesta Photobooth — Capture your moment with Purple Galaxy style">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=Nunito:wght@800;900&family=Bubblegum+Sans&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/v2.css?v=5">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/v2.css?v=6">
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
 <script src="js/omggif.js"></script>
@@ -45,21 +46,20 @@ $sid = $_SESSION['pb_session'];
 </div>
 <!-- START PAGE -->
 <div id="startPage" class="start-page">
-  <!-- Fullscreen background video -->
-  <!-- Double-buffer: two video elements for seamless gapless looping -->
-  <video class="start-video-bg" id="vidA" src="assets/video/undersea_1.mp4" preload="auto" muted playsinline></video>
-  <video class="start-video-bg" id="vidB" src="assets/video/undersea_1.mp4" preload="auto" muted playsinline style="opacity:0"></video>
-
-  <!-- Overlay gradient -->
+  <!-- Nebula overlay -->
   <div class="start-overlay"></div>
 
-  <!-- Logo + Button di sebelah kanan mesin -->
+  <!-- Wordmark + Button center -->
   <div class="start-right">
-    <img src="assets/logo-photobooth-undersea.png" class="start-logo" alt="Photobooth Undersea">
+    <div class="pb-wordmark" style="position:relative;">
+      <span class="pb-wordmark-top">IMMERSIVE FIESTA</span>
+      <span class="pb-wordmark-brand">PHOTOBOOTH</span>
+      <span class="pb-wordmark-sub">✦ STUDIO ✦</span>
+    </div>
     <button class="start-btn g-click" id="btnStart">
       <span class="start-btn-inner">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        Start
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        MULAI
       </span>
     </button>
   </div>
@@ -68,9 +68,12 @@ $sid = $_SESSION['pb_session'];
 <!-- LOAD SCREEN -->
 <div id="loadScreen" class="load-screen">
   <div class="load-inner">
-    <img src="assets/logo-photobooth-undersea.png" class="load-logo" alt="Photobooth Undersea">
+    <div class="load-wordmark">
+      IMMERSIVE FIESTA
+      <em>PHOTOBOOTH</em>
+    </div>
     <div class="load-bar-track"><div class="load-bar-fill" id="loadBar"></div></div>
-    <p class="load-status" id="loadStatus">Starting up</p>
+    <p class="load-status" id="loadStatus">Starting up...</p>
   </div>
 </div>
 
@@ -80,7 +83,11 @@ $sid = $_SESSION['pb_session'];
   <!-- TOPBAR -->
   <header class="topbar">
     <div class="topbar-brand g-click">
-      <img src="assets/logo-photobooth-undersea.png" class="topbar-logo" alt="Photobooth Undersea">
+      <div class="brand-logo-mark">✦</div>
+      <div class="topbar-wordmark">
+        IMMERSIVE FIESTA
+        <span>PHOTOBOOTH</span>
+      </div>
     </div>
     <div class="topbar-mid">
       <div class="status-pill" id="statusPill">
@@ -269,9 +276,12 @@ $sid = $_SESSION['pb_session'];
 
         <!-- Camera error -->
         <div class="cam-err" id="camErr" style="display:none">
-          <p id="camErrTitle" style="font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 6px;">Camera access needed</p>
-          <p id="camErrDetail" style="font-size: 11px; color: rgba(255,255,255,0.8); text-align: center; max-width: 80%; margin-bottom: 12px; line-height: 1.5;"></p>
-          <button class="g-click" onclick="App.initCam()">Allow Camera</button>
+          <p id="camErrTitle" style="font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 6px;">Kamera Tidak Dapat Diakses</p>
+          <p id="camErrDetail" style="font-size: 11px; color: rgba(255,255,255,0.8); text-align: center; max-width: 85%; margin-bottom: 14px; line-height: 1.5;"></p>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
+            <button class="g-click" onclick="App.initCam()" style="padding:8px 16px; background:#7B2DC0; border:1px solid #C77DFF; border-radius:12px; color:#fff; cursor:pointer; font-weight:bold; font-size:11px;">Coba Hubungkan Kamera</button>
+            <button class="g-click" onclick="WebCam.useVirtualCam(document.getElementById('video'))" style="padding:8px 16px; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3); border-radius:12px; color:#fff; cursor:pointer; font-size:11px;">Mode Demo (Tanpa Kamera)</button>
+          </div>
         </div>
 
         <!-- Frame counter -->
@@ -333,11 +343,20 @@ $sid = $_SESSION['pb_session'];
         </div>
 
         <div class="output-actions" id="outActions" style="display:none">
-          <button class="oa-btn oa-primary g-click" id="btnDlStrip">Download PNG</button>
-          <button class="oa-btn oa-sec g-click"     id="btnMkGif">Create GIF</button>
-          <button class="oa-btn oa-sec g-click"     id="btnSaveGal">Save Gallery</button>
-          <button class="oa-btn oa-ghost g-click"   id="btnNewSess">New Session</button>
+          <!-- Preview label -->
+          <p class="oa-label">Foto selesai! Cek preview di kanan 👉</p>
+          <div class="oa-btn-row">
+            <button class="oa-btn oa-ghost g-click" id="btnRetakePreview">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.6"/></svg>
+              Foto Ulang
+            </button>
+            <button class="oa-btn oa-primary oa-qris g-click" id="btnShowQR">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/></svg>
+              Ambil Foto via QRIS
+            </button>
+          </div>
         </div>
+
       </section>
 
       <section class="gif-section" id="gifSection" style="display:none">
@@ -392,114 +411,19 @@ document.addEventListener('DOMContentLoaded', () => {
     startPage.classList.add('out');
     startPage.addEventListener('transitionend', () => startPage.remove(), { once: true });
   }, { once: true });
-
-  // ── Double-Buffer Seamless Loop ─────────────────────────
-  // Problem: timeupdate+seek causes freeze because browser must
-  // decode a new keyframe in a 14MB file mid-playback.
-  // Solution: keep TWO video elements, both preloaded.
-  // When A is ~1s from the end, silently start B (already at t=0,
-  // fully buffered). When A ends, instantly swap visibility.
-  // Reset A to 0 while hidden. Alternate forever — zero stutter.
-  const SRC = 'assets/video/undersea_1.mp4';
-  const vidA = document.getElementById('vidA');
-  const vidB = document.getElementById('vidB');
-  if (!vidA || !vidB) return;
-
-  let active  = vidA;   // currently visible
-  let standby = vidB;   // preloaded, waiting
-  let switching = false;
-  let standbyPlaying = false;
-
-  // Set transition to none so the swap is instant
-  [vidA, vidB].forEach(v => {
-    v.style.transition = 'none';
-  });
-
-  function playVideo(v) {
-    return v.play().catch(() => {
-      // Autoplay blocked by browser policy — wait for first user touch
-      document.addEventListener('pointerdown', () => v.play().catch(() => {}), { once: true });
-    });
-  }
-
-  function doSwitch() {
-    if (switching) return;
-    switching = true;
-
-    // Instant swap (no cross-fade)
-    standby.style.zIndex  = '2';
-    active.style.zIndex   = '1';
-    standby.style.opacity = '1';
-    active.style.opacity  = '0';
-
-    const old = active;
-    active    = standby;
-    standby   = old;
-
-    // Reset old active silently
-    old.pause();
-    old.currentTime = 0;
-    old.style.zIndex = '1';
-
-    switching = false;
-    standbyPlaying = false;
-  }
-
-  // Monitor active video — switch when near the end
-  function tick() {
-    if (!document.getElementById('startPage')) return; // page removed
-    
-    if (active.duration) {
-      // 1. Warm up standby video 0.3s before active ends
-      if (!switching && !standbyPlaying && active.currentTime >= active.duration - 0.3) {
-        standbyPlaying = true;
-        standby.currentTime = 0;
-        playVideo(standby);
-      }
-      
-      // 2. Instant swap at the very last frame (~0.04s before end)
-      if (!switching && active.currentTime >= active.duration - 0.04) {
-        doSwitch();
-      }
-    }
-    requestAnimationFrame(tick);
-  }
-
-  // Start: wait for A to be buffered, then play
-  function initLoop() {
-    vidA.style.opacity = '1';
-    vidA.style.zIndex  = '2';
-    vidB.style.opacity = '0';
-    vidB.style.zIndex  = '1';
-    playVideo(vidA);
-    requestAnimationFrame(tick);
-  }
-
-  // Fire when enough data is buffered
-  if (vidA.readyState >= 3) {
-    initLoop();
-  } else {
-    vidA.addEventListener('canplaythrough', initLoop, { once: true });
-    vidA.addEventListener('loadeddata',     initLoop, { once: true });
-  }
-
-  // Error fallback — hide both, CSS gradient shows through
-  [vidA, vidB].forEach(v => {
-    v.addEventListener('error', () => { v.style.display = 'none'; });
-  });
 });
 </script>
 <script src="js/v2-utils.js?v=10"></script>
 <script src="js/v2-audio.js?v=10"></script>
 <script src="js/v2-webrtc.js?v=10"></script>
-<script src="js/v2-gesture.js?v=10"></script>
+<script src="js/v2-gesture.js?v=11"></script>
 <script src="js/v2-filters.js?v=10"></script>
 <script src="js/v2-strip.js?v=10"></script>
 <script src="js/v2-gif.js?v=10"></script>
-<script src="js/v2-api.js?v=12"></script>
+<script src="js/v2-api.js?v=13"></script>
 <script src="js/v2-stickers.js?v=10"></script>
-<script src="js/v2-workflow.js?v=4"></script>
-<script src="js/v2-app.js?v=13"></script>
+<script src="js/v2-workflow.js?v=8"></script>
+<script src="js/v2-app.js?v=14"></script>
 
 <script>
 function StickerAdd(id) {
@@ -545,7 +469,7 @@ function StickerAdd(id) {
 
     <!-- Header -->
     <div class="pbqr-header">
-      <img src="assets/logo-photobooth-undersea.png" class="pbqr-logo" alt="Photobooth Undersea">
+      <div style="font-size:28px;margin-bottom:8px;text-shadow:0 0 12px rgba(199,125,255,.6);">✦</div>
       <h1 class="pbqr-title">Scan QR untuk Mengunduh</h1>
       <p class="pbqr-desc">Arahkan kamera HP ke QR Code untuk melihat &amp; mengunduh Photo Strip, foto, dan GIF Anda.</p>
     </div>
@@ -562,47 +486,14 @@ function StickerAdd(id) {
     <div class="pbqr-actions">
       <button class="pbqr-btn pbqr-btn-secondary" id="pbBtnDownloadQR">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2v9m0 0l-3-3m3 3l3-3"/><rect x="2" y="14" width="20" height="7" rx="2"/>
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <line x1="10" y1="14" x2="21" y2="3"></line>
         </svg>
-        Download via QR
-      </button>
-      <button class="pbqr-btn pbqr-btn-primary" id="pbBtnVideoMapping">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
-        </svg>
-        Kirim ke Video Mapping
+        Buka Google Drive
       </button>
     </div>
 
-    <!-- VM Status -->
-    <div id="pbVMStatus" class="vm-status" style="display:none"></div>
-    <button class="pbqr-btn-retry" id="pbBtnRetryVM" style="display:none">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-        <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.18"/>
-      </svg>
-      Coba Lagi
-    </button>
-
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- VIDEO MAPPING CONFIRMATION DIALOG -->
-<!-- ============================================================ -->
-<div id="pbVMDialog" class="pb-overlay pb-vm-dialog" style="display:none">
-  <div class="pbvm-card">
-    <div class="pbvm-icon">🎬</div>
-    <h2 class="pbvm-title">Kirim hasil foto ke Video Mapping?</h2>
-    <p class="pbvm-desc">Hasil foto Anda akan dikirim ke sistem Video Mapping dan dapat ditampilkan pada layar utama acara.</p>
-    <!-- Grid Pilihan Foto -->
-    <div class="pbvm-grid" id="pbVMGrid"></div>
-    <div class="pbvm-actions">
-      <button class="pbvm-btn pbvm-btn-cancel" id="pbVMCancel">Batal</button>
-      <button class="pbvm-btn pbvm-btn-confirm" id="pbVMConfirm">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
-        Kirim
-      </button>
-    </div>
   </div>
 </div>
 

@@ -131,64 +131,14 @@ const Gesture = (() => {
       for (let h = 0; h < res.multiHandLandmarks.length; h++) {
         const lm = res.multiHandLandmarks[h];
 
-        // Use the FIRST detected hand for sticker gestures
-        let isStickerGesture = false;
-        if (h === 0) {
-          const point = _detectPointing(lm, cvs.width, cvs.height);
-          const pinch = _detectPinch(lm, cvs.width, cvs.height, wasPinching);
-          const vsign = _detectVSign(lm, cvs.width, cvs.height);
-
-          // Priority: vsign > pinch > point
-          if (vsign.isVSign) {
-            g.mode       = 'vsign';
-            g.isVSign    = true;
-            g.indexTip   = vsign.indexTip;
-            isStickerGesture = true;
-          } else if (pinch.isPinching) {
-            g.mode       = 'pinch';
-            g.isPinching = true;
-            g.indexTip   = pinch.indexTip;
-            g.pinchMid   = pinch.mid;
-            g.pinchDist  = pinch.dist;
-            isStickerGesture = true;
-          } else if (point.isPointing) {
-            g.mode       = 'point';
-            g.isPointing = true;
-            g.indexTip   = point.indexTip;
-            isStickerGesture = true;
-          }
-          // Apply EMA Smoothing
-          const alpha = 0.4;
-          const _smooth = (target, raw) => {
-            if (!raw) return null;
-            if (!target || Math.hypot(target.x - raw.x, target.y - raw.y) > 80) {
-              return { x: raw.x, y: raw.y }; // snap if jumped far
-            }
-            return {
-              x: target.x + alpha * (raw.x - target.x),
-              y: target.y + alpha * (raw.y - target.y)
-            };
-          };
-
-          state.smoothCoords.indexTip = _smooth(state.smoothCoords.indexTip, g.indexTip);
-          state.smoothCoords.pinchMid = _smooth(state.smoothCoords.pinchMid, g.pinchMid);
-
-          // Update g with smoothed values
-          if (g.indexTip) g.indexTip = state.smoothCoords.indexTip;
-          if (g.pinchMid) g.pinchMid = state.smoothCoords.pinchMid;
-
-          // Draw cursor
-          _drawCursor(ctx, g, cvs.width, cvs.height);
-        }
-
-        // Open palm — only for shutter trigger (ignore if hand is doing a sticker gesture)
+        // Open Palm Up — solely for shutter trigger
         const palm = _detectOpenPalm(lm, cvs.width, cvs.height);
-        if (palm.isOpen && !isStickerGesture) { 
+        if (palm.isOpen) { 
           palmDetected = true; 
           bestConf = Math.max(bestConf, palm.conf); 
         }
 
-        // Draw confidence arc near wrist
+        // Draw confidence arc & hold ring near wrist
         _drawConfArc(ctx, lm, cvs.width, cvs.height, palm.conf, palm.isOpen);
       }
     }
@@ -200,35 +150,41 @@ const Gesture = (() => {
       detected:   palmDetected,
       conf:       state.smoothConf,
       holdProg:   state.holdProg,
-      // Sticker gesture data
-      mode:       g.mode,
-      indexTip:   g.indexTip,
-      pinchMid:   g.pinchMid,
-      pinchDist:  g.pinchDist,
-      isPointing: g.isPointing,
-      isPinching: g.isPinching,
-      isVSign:    g.isVSign,
+      mode:       'none',
+      indexTip:   null,
+      pinchMid:   null,
+      pinchDist:  0,
+      isPointing: false,
+      isPinching: false,
+      isVSign:    false,
     });
   }
 
-  /* ── Open palm (shutter) ────────────────────────────────── */
+  /* ── Open palm UP (shutter trigger only) ─────────────────── */
   function _detectOpenPalm(lm, cw, ch) {
     const pt   = i => ({ x: lm[i].x * cw, y: lm[i].y * ch });
     const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
     const wrist = pt(0);
     const fingers = [[8,5],[12,9],[16,13],[20,17]];
     let ext = 0;
+    let pointingUp = 0;
+
     for (const [tip, mcp] of fingers) {
-      const td = dist(pt(tip), wrist), md = dist(pt(mcp), wrist);
-      // FIX: was > 1.4 (too strict). Lowered to 1.25 for better detection at angles
-      if (td / Math.max(md, .1) > 1.25) ext++;
+      const pTip = pt(tip);
+      const pMcp = pt(mcp);
+      const td = dist(pTip, wrist), md = dist(pMcp, wrist);
+      if (td / Math.max(md, .1) > 1.22) ext++;
+      // Palm Up: finger tip must be higher than MCP (smaller Y in screen coords)
+      if (pTip.y < pMcp.y) pointingUp++;
     }
-    // FIX: thumbSpread threshold lowered from .75 to .55, and made non-mandatory
-    const thumbSpread = dist(pt(4), pt(5)) / Math.max(dist(wrist, pt(5)), .1) > .55;
-    // FIX: was ext >= 4 && thumbSpread. Now 3 fingers suffice, thumb is a bonus
-    const isOpen = ext >= 3 && thumbSpread;
-    const conf   = U.clamp((ext / 4) * .85 + (thumbSpread ? .15 : 0), 0, 1);
-    return { isOpen, conf };
+
+    const thumbSpread = dist(pt(4), pt(5)) / Math.max(dist(wrist, pt(5)), .1) > .50;
+    // Middle fingertip must be higher than wrist (hand oriented upward)
+    const isUpright = pt(12).y < (wrist.y - 25);
+
+    const isOpenPalmUp = ext >= 3 && thumbSpread && pointingUp >= 3 && isUpright;
+    const conf   = isOpenPalmUp ? U.clamp((ext / 4) * .85 + (thumbSpread ? .15 : 0), 0.5, 1) : 0;
+    return { isOpen: isOpenPalmUp, conf };
   }
 
   /* ── Pointing ☝ — only index finger extended ────────────── */

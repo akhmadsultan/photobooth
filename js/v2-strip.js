@@ -74,6 +74,15 @@ const Strip = (() => {
   function reset(){ frames.length=0; _render(); }
   function getFrames(){ return [...frames]; }
 
+  /* Remove only the last captured frame (retake) */
+  function retakeLast(){
+    if(frames.length === 0) return 0;
+    frames.pop();
+    _render();
+    return frames.length;
+  }
+
+
   function setUploadedFrame(img, mode, bgColor) {
     if (img !== undefined) uploadSettings.img = img;
     if (mode !== undefined) uploadSettings.mode = mode;
@@ -483,9 +492,10 @@ const Strip = (() => {
     ctx.lineWidth  = 2;
     ctx.lineJoin   = 'round';
     ctx.strokeStyle = 'rgba(13,58,94,.6)';
-    ctx.strokeText('Undersea Studio', FRAME_W / 2, midY);
-    ctx.fillStyle  = '#f7d716';
-    ctx.fillText('Undersea Studio', FRAME_W / 2, midY);
+    ctx.strokeText('Immersive Fiesta Studio', FRAME_W / 2, midY);
+    ctx.fillStyle  = '#C77DFF';
+    ctx.fillText('Immersive Fiesta Studio', FRAME_W / 2, midY);
+
 
     // Tiny bubble dots along edges
     ctx.fillStyle = 'rgba(255,255,255,.25)';
@@ -503,6 +513,7 @@ const Strip = (() => {
     ctx.restore();
   }
 
-  return { init, add, setFrameStyle, getFrameStyle, count, isComplete, reset, getFrames, getDataURL, setUploadedFrame, getUploadedSettings, preloadPresetFrames };
+  return { init, add, setFrameStyle, getFrameStyle, count, isComplete, reset, retakeLast, getFrames, getDataURL, setUploadedFrame, getUploadedSettings, preloadPresetFrames };
+
 })();
 window.Strip=Strip;

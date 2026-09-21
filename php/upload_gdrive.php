@@ -12,6 +12,9 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
+@set_time_limit(180);
+@ini_set('max_execution_time', 180);
+
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
@@ -102,7 +105,14 @@ try {
     }
 
     // 1. Create Folder on Google Drive
-    $parentFolderId = $gdriveCfg['parent_folder_id'] ?? null;
+    $parentFolderId = trim($gdriveCfg['parent_folder_id'] ?? '');
+    if (!empty($parentFolderId)) {
+        if (preg_match('/folders\/([a-zA-Z0-9_\-]+)/', $parentFolderId, $m)) {
+            $parentFolderId = $m[1];
+        }
+    } else {
+        $parentFolderId = null;
+    }
     $folderId = _createGDriveFolder($accessToken, $folderName, $parentFolderId);
     if (!$folderId) {
         throw new Exception('Failed to create folder on Google Drive');
@@ -129,7 +139,6 @@ try {
             $mimeType = _getMimeType($filename);
             $fileId = _uploadFileToGDrive($accessToken, $filePath, $filename, $mimeType, $folderId);
             if ($fileId) {
-                _makeGDrivePublic($accessToken, $fileId);
                 // Web view link or direct view URL
                 $gdriveUrls[$fieldKey] = "https://drive.google.com/uc?export=view&id={$fileId}";
             } else {

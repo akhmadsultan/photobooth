@@ -12,33 +12,71 @@ const WebCam = (() => {
   };
 
   async function init(el){
-    videoEl=el;
-    let s;
+    videoEl = el;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       const secureErr = new Error('navigator.mediaDevices is undefined. Please ensure HTTPS or localhost is used.');
       secureErr.name = 'SecurityError';
       ev.emit('error', secureErr);
       throw secureErr;
     }
-    try {
-      s=await navigator.mediaDevices.getUserMedia(CONSTRAINTS);
-    } catch(e){
-      console.warn('[WebCam] HD failed, fallback:', e.name);
-      try { s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false}); }
-      catch(e2){ ev.emit('error',e2); throw e2; }
+
+    let s = null;
+    let lastErr = null;
+
+    // Multi-tier constraint fallback sequence
+    const fallbackList = [
+      CONSTRAINTS,
+      { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+      { video: { facingMode: 'user' }, audio: false },
+      { video: true, audio: false }
+    ];
+
+    for (const constraint of fallbackList) {
+      try {
+        s = await navigator.mediaDevices.getUserMedia(constraint);
+        if (s && s.getVideoTracks().length > 0) break;
+      } catch(e) {
+        lastErr = e;
+        console.warn('[WebCam] Constraint attempt failed:', constraint, e.name);
+      }
     }
-    stream=s;
-    el.srcObject=s;
-    await new Promise((res,rej)=>{
-      el.onloadedmetadata=res;
-      setTimeout(()=>rej(new Error('timeout')),8000);
+
+    // Try device enumeration if basic constraints failed
+    if (!s) {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevs = devices.filter(d => d.kind === 'videoinput');
+        for (const dev of videoDevs) {
+          try {
+            s = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: dev.deviceId } }, audio: false });
+            if (s && s.getVideoTracks().length > 0) break;
+          } catch(e3) {
+            lastErr = e3;
+          }
+        }
+      } catch(eEnum) {
+        console.warn('[WebCam] Enumerate devices failed:', eEnum);
+      }
+    }
+
+    if (!s) {
+      const finalErr = lastErr || new Error('All camera initialization attempts failed');
+      ev.emit('error', finalErr);
+      throw finalErr;
+    }
+
+    stream = s;
+    el.srcObject = s;
+    await new Promise((res, rej) => {
+      el.onloadedmetadata = res;
+      setTimeout(() => rej(new Error('video metadata timeout')), 8000);
     });
     await el.play();
-    active=true;
-    const t=s.getVideoTracks()[0];
-    const cfg=t?.getSettings()||{};
-    ev.emit('ready',{ w:el.videoWidth, h:el.videoHeight, cfg });
-    t?.addEventListener('ended',()=>{ active=false; ev.emit('lost'); });
+    active = true;
+    const t = s.getVideoTracks()[0];
+    const cfg = t?.getSettings() || {};
+    ev.emit('ready', { w: el.videoWidth, h: el.videoHeight, cfg });
+    t?.addEventListener('ended', () => { active = false; ev.emit('lost'); });
     return s;
   }
 
@@ -85,6 +123,53 @@ const WebCam = (() => {
     return { dataURL:cvs.toDataURL('image/jpeg',.92), w, h };
   }
 
+  function useVirtualCam(el) {
+    videoEl = el || videoEl || document.getElementById('video');
+    if (!videoEl) return;
+
+    const cvs = document.createElement('canvas');
+    cvs.width = 640;
+    cvs.height = 480;
+    const ctx = cvs.getContext('2d');
+
+    function drawVirtualFrame() {
+      const now = Date.now() * 0.002;
+      const grad = ctx.createLinearGradient(0, 0, 640, 480);
+      grad.addColorStop(0, '#240045');
+      grad.addColorStop(0.5, '#7B2DC0');
+      grad.addColorStop(1, '#C77DFF');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 640, 480);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.beginPath();
+      ctx.arc(320 + Math.sin(now) * 80, 240 + Math.cos(now) * 40, 90, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('DEMO CAMERA STREAM', 320, 220);
+      ctx.font = '14px monospace';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.fillText('Virtual Test Mode • Photobooth Ready', 320, 260);
+
+      requestAnimationFrame(drawVirtualFrame);
+    }
+    drawVirtualFrame();
+
+    const s = cvs.captureStream(30);
+    stream = s;
+    videoEl.srcObject = s;
+    videoEl.play().catch(() => {});
+    active = true;
+
+    ev.emit('ready', { w: 640, h: 480, cfg: { label: 'Virtual Demo Camera' } });
+    const errEl = document.getElementById('camErr');
+    if (errEl) errEl.style.display = 'none';
+    return s;
+  }
+
   function stop(){
     stream?.getTracks().forEach(t=>t.stop());
     if(videoEl) videoEl.srcObject=null;
@@ -96,6 +181,6 @@ const WebCam = (() => {
   }
 
   function on(e,f){ ev.on(e,f); }
-  return { init, capture, stop, getInfo, on, get active(){ return active; } };
+  return { init, capture, stop, getInfo, on, useVirtualCam, get active(){ return active; } };
 })();
 window.WebCam=WebCam;

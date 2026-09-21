@@ -11,9 +11,7 @@ const Workflow = (() => {
   let _driveData   = null;
   let _timerHandle = null;
   let _timerSecs   = 60;
-  let _vmPayload   = null;
   let _qrInstance  = null;
-  let _selectedFrameIndex = 0;
 
   const QUEUE_KEY = 'pb_upload_queue';
 
@@ -79,24 +77,18 @@ const Workflow = (() => {
       };
     }
 
-    /* ── Step 4: Build Video Mapping payload ── */
-    _vmPayload = {
-      photo_strip_url:         _driveData.photo_strip_url,
-      photo1_url:              _driveData.photo1_url,
-      photo2_url:              _driveData.photo2_url,
-      photo3_url:              _driveData.photo3_url,
-      photo4_url:              _driveData.photo4_url,
-      gif_url:                 _driveData.gif_url,
-      google_drive_folder_url: _driveData.google_drive_folder_url
-    };
-
-    /* ── Step 5: Build QR URL ── */
+    /* ── Step 4: Build QR URL ── */
     _updateProcessing('Membuat QR Code...');
-    const proto  = location.protocol;
-    const host   = location.host;
-    const pbPath = location.pathname.replace(/\/[^/]*$/, '');
-    const shareUrl = `${proto}//${host}${pbPath}/share.php?sid=${encodeURIComponent(sessionId)}`;
-    console.log('[Workflow] QR share URL:', shareUrl);
+    let shareUrl = '';
+    if (_driveData?.google_drive_folder_url && _driveData.google_drive_folder_url.includes('drive.google.com')) {
+      shareUrl = _driveData.google_drive_folder_url;
+    } else {
+      const proto  = location.protocol;
+      const host   = location.host;
+      const pbPath = location.pathname.replace(/\/[^/]*$/, '');
+      shareUrl = `${proto}//${host}${pbPath}/share.php?sid=${encodeURIComponent(sessionId)}`;
+    }
+    console.log('[Workflow] Final QR URL:', shareUrl);
 
     /* ── Step 6: Always show QR screen ── */
     _showProcessingOverlay(false);
@@ -154,6 +146,22 @@ const Workflow = (() => {
         console.error('[Workflow] QR render error:', e);
         /* Fallback: show URL as text */
         qrContainer.innerHTML = `<div style="background:#fff;padding:12px;border-radius:8px;font-size:10px;word-break:break-all;color:#333;max-width:240px;">${shareUrl}</div>`;
+      }
+    }
+
+    /* Setup Download button */
+    const btnDl = document.getElementById('pbBtnDownloadQR');
+    if (btnDl) {
+      btnDl.onclick = () => window.open(shareUrl, '_blank');
+      if (_driveData?.is_gdrive) {
+        btnDl.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+          Buka Google Drive
+        `;
       }
     }
 
@@ -219,62 +227,6 @@ const Workflow = (() => {
   }
 
   /* ═══════════════════════════════════════════════
-     VIDEO MAPPING — SUPABASE
-     ═══════════════════════════════════════════════ */
-  async function sendToVideoMapping(selectedIndex = null) {
-    if (!_vmPayload) { U.toast('Tidak ada data untuk dikirim', 'warn'); return; }
-    if (selectedIndex !== null) {
-      _selectedFrameIndex = parseInt(selectedIndex, 10);
-    }
-
-    const vmStatus = document.getElementById('pbVMStatus');
-    const btnRetry = document.getElementById('pbBtnRetryVM');
-
-    if (vmStatus) {
-      vmStatus.className   = 'vm-status loading';
-      vmStatus.textContent = 'Mengirim...';
-      vmStatus.style.display = 'flex';
-    }
-    if (btnRetry) btnRetry.style.display = 'none';
-
-    _stopCountdown();
-
-    try {
-      // Create a copy of the payload
-      const finalPayload = { ..._vmPayload };
-      
-      // Override photo_strip_url with the URL of the selected frame (without strip design)
-      const fieldKey = `photo${_selectedFrameIndex + 1}_url`;
-      if (_driveData && _driveData[fieldKey]) {
-        finalPayload.photo_strip_url = _driveData[fieldKey];
-      }
-      
-      console.log('[Workflow] Sending to Video Mapping (selected frame index:', _selectedFrameIndex, ') payload:', finalPayload);
-
-      const res = await API.sendToVideoMapping(finalPayload);
-      if (res.success) {
-        if (vmStatus) {
-          vmStatus.className  = 'vm-status success';
-          vmStatus.innerHTML  = '✓ Berhasil dikirim ke Video Mapping.';
-        }
-        window.SFX?.success?.();
-      } else {
-        throw new Error(res.message || 'Gagal mengirim');
-      }
-    } catch(e) {
-      if (vmStatus) {
-        vmStatus.className   = 'vm-status error';
-        vmStatus.textContent = 'Gagal mengirim ke Video Mapping.';
-      }
-      if (btnRetry) btnRetry.style.display = 'inline-flex';
-      window.SFX?.error?.();
-      console.error('[Workflow] Supabase error:', e);
-    }
-
-    _startCountdown();
-  }
-
-  /* ═══════════════════════════════════════════════
      OFFLINE QUEUE
      ═══════════════════════════════════════════════ */
   function _localBase(sessionId) {
@@ -320,7 +272,6 @@ const Workflow = (() => {
   /* ─── Public API ─────────────────────────────── */
   return {
     run,
-    sendToVideoMapping,
     hideQRScreen,
     stopCountdown: _stopCountdown
   };

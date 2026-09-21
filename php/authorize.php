@@ -36,6 +36,7 @@ if (isset($_GET['code'])) {
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/x-www-form-urlencoded']);
     
     $response = curl_exec($ch);
+    $curlErr = curl_error($ch);
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     
@@ -44,7 +45,10 @@ if (isset($_GET['code'])) {
     echo "<h1>Hasil Otorisasi</h1>";
     if ($status >= 400 || !isset($data['refresh_token'])) {
         echo "<p style='color:red; font-weight:bold;'>Gagal menukar kode otorisasi:</p>";
-        echo "<pre>" . htmlspecialchars($response) . "</pre>";
+        if ($curlErr) {
+            echo "<p style='color:red;'>cURL Error: " . htmlspecialchars($curlErr) . "</p>";
+        }
+        echo "<pre>" . htmlspecialchars($response ?: 'Tidak ada respon dari server') . "</pre>";
         echo "<p>Pastikan Client ID & Client Secret di file <code>php/gdrive_credentials.json</code> sudah benar dan sama dengan yang Anda gunakan untuk login.</p>";
     } else {
         // Save back to JSON

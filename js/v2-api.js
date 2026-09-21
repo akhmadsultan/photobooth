@@ -6,6 +6,20 @@
 const API = (() => {
   const base = () => window.PB_CFG?.apiBase || 'php/';
 
+  function _dataURLtoBlob(d) {
+    if (window.U && typeof window.U.dataURLtoBlob === 'function') {
+      return window.U.dataURLtoBlob(d);
+    }
+    const parts = d.split(',');
+    const header = parts[0];
+    const base64 = parts[1];
+    const mime = header.match(/:(.*?);/)?.[1] || 'image/png';
+    const bin = atob(base64);
+    const u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return new Blob([u8], { type: mime });
+  }
+
   /* ── Save strip + frames via multipart FormData ─────────
      Each field is sent individually so no single value is huge.
      PHP reads via $_POST which works with any server setup.     */
@@ -91,48 +105,16 @@ const API = (() => {
     }
   }
 
-  /* ── Send record to Supabase (Video Mapping) ─────────────── */
-  async function sendToVideoMapping(payload) {
-    let res;
-    try {
-      res = await fetch(base() + 'supabase_sync.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    } catch(e) {
-      throw new Error('Network error (Supabase): ' + e.message);
-    }
-
-    const text = await res.text();
-    if (!res.ok) throw new Error(`Supabase server ${res.status}: ${text.slice(0, 300)}`);
-    try { return JSON.parse(text); } catch(e) {
-      throw new Error('Supabase PHP non-JSON: ' + text.slice(0, 300));
-    }
-  }
-
-  /* Convert dataURL to binary Blob (bypasses base64 overhead) */
-  function _dataURLtoBlob(dataURL) {
-    const [header, b64] = dataURL.split(',');
-    const mime = header.match(/:(.*?);/)[1];
-    const bin  = atob(b64);
-    const buf  = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-    return new Blob([buf], { type: mime });
-  }
-
-  /* ── Ping ─────────────────────────────────────────────── */
+  /* ── Ping / server health check ─────────────────────────── */
   async function ping() {
-    const t = Date.now();
     try {
-      const res = await fetch(base() + 'ping.php');
-      if (!res.ok) return { ok: false };
-      return { ok: true, ms: Date.now() - t };
+      const res = await fetch(base() + 'save_photo.php?_ping=1', { method: 'GET' });
+      return { ok: true, status: res.status };
     } catch(e) {
       return { ok: false, error: e.message };
     }
   }
 
-  return { saveStrip, saveGif, uploadGDrive, sendToVideoMapping, ping };
+  return { saveStrip, saveGif, uploadGDrive, ping };
 })();
 window.API = API;

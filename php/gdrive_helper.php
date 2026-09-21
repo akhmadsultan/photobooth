@@ -5,8 +5,10 @@
  */
 
 // Define the parent folder ID where session subfolders will be created (Optional)
-// Set this to your Google Drive shared folder ID.
-define('GDRIVE_PARENT_FOLDER_ID', '1zpfn1W9HZpUejCCb8sAKt0J7orWrBZMj'); 
+// Set this to your Google Drive shared folder ID or leave empty for root Drive.
+$configPath = __DIR__ . '/../config.php';
+$appConfig = file_exists($configPath) ? (require $configPath) : [];
+define('GDRIVE_PARENT_FOLDER_ID', $appConfig['gdrive']['parent_folder_id'] ?? ''); 
 
 // Path to Google Service Account JSON credentials
 define('GDRIVE_CREDENTIALS_FILE', __DIR__ . '/gdrive_credentials.json');

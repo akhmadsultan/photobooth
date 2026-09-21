@@ -1,2 +1,5 @@
 php/gdrive_credentials.json
+gdrive_service_account.json
+.env
 uploads/
+.md
