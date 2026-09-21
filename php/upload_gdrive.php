@@ -227,7 +227,7 @@ function _getGDriveAccessToken(array $cfg): ?string {
 
 function _createGDriveFolder(string $token, string $folderName, ?string $parentId = null): ?string {
     $meta = ['name' => $folderName, 'mimeType' => 'application/vnd.google-apps.folder'];
-    if ($parentId) $meta['parents'] = [$parentId];
+    if (!empty($parentId)) $meta['parents'] = [$parentId];
     
     $ch = curl_init('https://www.googleapis.com/drive/v3/files');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -237,8 +237,26 @@ function _createGDriveFolder(string $token, string $folderName, ?string $parentI
         'Content-Type: application/json'
     ]);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($meta));
-    $res = json_decode(curl_exec($ch), true);
+    $raw = curl_exec($ch);
+    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
+    $res = json_decode($raw, true);
+
+    // Fallback: If parent folder was invalid/not found, retry creating in root Drive
+    if (($status >= 400 || empty($res['id'])) && !empty($parentId)) {
+        unset($meta['parents']);
+        $ch2 = curl_init('https://www.googleapis.com/drive/v3/files');
+        curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch2, CURLOPT_POST, true);
+        curl_setopt($ch2, CURLOPT_HTTPHEADER, [
+            "Authorization: Bearer {$token}",
+            'Content-Type: application/json'
+        ]);
+        curl_setopt($ch2, CURLOPT_POSTFIELDS, json_encode($meta));
+        $res = json_decode(curl_exec($ch2), true);
+        curl_close($ch2);
+    }
+
     return $res['id'] ?? null;
 }
 

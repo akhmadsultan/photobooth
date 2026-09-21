@@ -8,10 +8,10 @@
 const Workflow = (() => {
 
   /* ── State ──────────────────────────────────── */
-  let _driveData   = null;
+  let _driveData = null;
   let _timerHandle = null;
-  let _timerSecs   = 60;
-  let _qrInstance  = null;
+  let _timerSecs = 60;
+  let _qrInstance = null;
 
   const QUEUE_KEY = 'pb_upload_queue';
 
@@ -30,12 +30,12 @@ const Workflow = (() => {
       const stripDataURL = await Strip.getDataURL();
       if (stripDataURL) {
         await API.saveStrip(stripDataURL, frames, {
-          filter:     Filters.get(),
+          filter: Filters.get(),
           frameStyle: Strip.getFrameStyle()
         });
         console.log('[Workflow] Strip saved OK');
       }
-    } catch(e) {
+    } catch (e) {
       console.warn('[Workflow] Step1 (save strip) non-fatal:', e.message);
     }
 
@@ -50,7 +50,7 @@ const Workflow = (() => {
         await API.saveGif(gifBlob, sessionId);
         console.log('[Workflow] GIF saved OK');
       }
-    } catch(e) {
+    } catch (e) {
       console.warn('[Workflow] Step2 (GIF) non-fatal:', e.message);
     }
 
@@ -60,7 +60,7 @@ const Workflow = (() => {
       _driveData = await API.uploadGDrive(sessionId);
       if (!_driveData?.success) throw new Error(_driveData?.message || 'Upload gagal');
       console.log('[Workflow] GDrive upload OK');
-    } catch(e) {
+    } catch (e) {
       console.warn('[Workflow] Step3 (GDrive) fallback to local:', e.message);
       _queueOfflineUpload(sessionId);
       const base = _localBase(sessionId);
@@ -69,11 +69,11 @@ const Workflow = (() => {
         is_local_fallback: true,
         google_drive_folder_url: base,
         photo_strip_url: base + 'strip.png',
-        photo1_url:      base + 'frame_0.jpg',
-        photo2_url:      base + 'frame_1.jpg',
-        photo3_url:      base + 'frame_2.jpg',
-        photo4_url:      base + 'frame_3.jpg',
-        gif_url:         base + 'boomerang.gif'
+        photo1_url: base + 'frame_0.jpg',
+        photo2_url: base + 'frame_1.jpg',
+        photo3_url: base + 'frame_2.jpg',
+        photo4_url: base + 'frame_3.jpg',
+        gif_url: base + 'boomerang.gif'
       };
     }
 
@@ -83,8 +83,8 @@ const Workflow = (() => {
     if (_driveData?.google_drive_folder_url && _driveData.google_drive_folder_url.includes('drive.google.com')) {
       shareUrl = _driveData.google_drive_folder_url;
     } else {
-      const proto  = location.protocol;
-      const host   = location.host;
+      const proto = location.protocol;
+      const host = location.host;
       const pbPath = location.pathname.replace(/\/[^/]*$/, '');
       shareUrl = `${proto}//${host}${pbPath}/share.php?sid=${encodeURIComponent(sessionId)}`;
     }
@@ -134,15 +134,15 @@ const Workflow = (() => {
       qrContainer.innerHTML = '';
       try {
         _qrInstance = new QRCode(qrContainer, {
-          text:         shareUrl,
-          width:        240,
-          height:       240,
-          colorDark:    '#0d2e4d',
-          colorLight:   '#ffffff',
+          text: shareUrl,
+          width: 400,
+          height: 400,
+          colorDark: '#0d2e4d',
+          colorLight: '#ffffff',
           correctLevel: 0 /* M — most scannable */
         });
         console.log('[Workflow] QR rendered OK');
-      } catch(e) {
+      } catch (e) {
         console.error('[Workflow] QR render error:', e);
         /* Fallback: show URL as text */
         qrContainer.innerHTML = `<div style="background:#fff;padding:12px;border-radius:8px;font-size:10px;word-break:break-all;color:#333;max-width:240px;">${shareUrl}</div>`;
@@ -165,10 +165,10 @@ const Workflow = (() => {
       }
     }
 
-    /* Make the screen visible — force inline styles in case CSS isn't loaded */
-    screen.style.display  = 'flex';
-    screen.style.opacity  = '1';
-    screen.style.zIndex   = '9200';
+    /* Make the screen visible */
+    screen.style.display = 'flex';
+    screen.style.opacity = '1';
+    screen.style.zIndex = '9200';
     screen.classList.add('visible');
     console.log('[Workflow] QR screen shown');
 
@@ -214,14 +214,14 @@ const Workflow = (() => {
   }
 
   function _updateCountdownUI(secs) {
-    const numEl  = document.getElementById('pbCountdownNum');
+    const numEl = document.getElementById('pbCountdownNum');
     const ringEl = document.getElementById('pbCountdownRing');
     if (numEl) numEl.textContent = secs;
     if (ringEl) {
-      const max   = window.PB_CFG?.qrTimerSeconds || 60;
-      const circ  = 2 * Math.PI * 28; // r=28
+      const max = window.PB_CFG?.qrTimerSeconds || 60;
+      const circ = 2 * Math.PI * 28; // r=28
       const offset = circ - (secs / max) * circ;
-      ringEl.style.strokeDasharray  = circ;
+      ringEl.style.strokeDasharray = circ;
       ringEl.style.strokeDashoffset = offset;
     }
   }
@@ -230,8 +230,8 @@ const Workflow = (() => {
      OFFLINE QUEUE
      ═══════════════════════════════════════════════ */
   function _localBase(sessionId) {
-    const proto  = location.protocol;
-    const host   = location.host;
+    const proto = location.protocol;
+    const host = location.host;
     const pbPath = location.pathname.replace(/\/[^/]*$/, '');
     return `${proto}//${host}${pbPath}/uploads/${sessionId}/`;
   }
@@ -243,7 +243,7 @@ const Workflow = (() => {
         queue.push({ sessionId, timestamp: Date.now() });
         localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
       }
-    } catch(e) {}
+    } catch (e) { }
   }
 
   function _watchReconnect() {
@@ -261,12 +261,12 @@ const Workflow = (() => {
         try {
           const result = await API.uploadGDrive(item.sessionId);
           if (!result?.success) remaining.push(item);
-        } catch(e) {
+        } catch (e) {
           remaining.push(item);
         }
       }
       localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
-    } catch(e) {}
+    } catch (e) { }
   }
 
   /* ─── Public API ─────────────────────────────── */

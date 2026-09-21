@@ -247,10 +247,13 @@ body {
   min-height: 160px;
 }
 .gif-card img {
-  max-width: 100%; max-height: 280px;
+  width: 100%;
+  height: auto;
+  display: block;
   border-radius: 10px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.35);
   cursor: zoom-in;
+  image-rendering: auto;
 }
 .gif-card .card-footer {
   padding: 14px 16px;

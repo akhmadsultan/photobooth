@@ -1850,10 +1850,13 @@ body {
 .pb-qr-screen {
   z-index: 9200;
   overflow-y: auto;
+  /* flex-column + margin:auto on child = only reliable centering with overflow scroll */
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 32px 20px;
 }
+
 .pbqr-inner {
   width: 100%; max-width: 480px;
   margin: auto;
@@ -1868,6 +1871,7 @@ body {
   position: relative;
   animation: pbqrSlideIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
 }
+
 @keyframes pbqrSlideIn {
   from { transform: translateY(30px) scale(0.95); opacity: 0; }
   to   { transform: none; opacity: 1; }

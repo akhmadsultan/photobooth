@@ -8,16 +8,21 @@
 // Set this to your Google Drive shared folder ID or leave empty for root Drive.
 $configPath = __DIR__ . '/../config.php';
 $appConfig = file_exists($configPath) ? (require $configPath) : [];
-define('GDRIVE_PARENT_FOLDER_ID', $appConfig['gdrive']['parent_folder_id'] ?? ''); 
+$rawFolder = $appConfig['gdrive']['parent_folder_id'] ?? '';
+if (preg_match('/folders\/([a-zA-Z0-9_\-]+)/', $rawFolder, $m)) {
+    $rawFolder = $m[1];
+}
+define('GDRIVE_PARENT_FOLDER_ID', $rawFolder); 
 
-// Path to Google Service Account JSON credentials
+// Path to Google Service Account / OAuth JSON credentials
 define('GDRIVE_CREDENTIALS_FILE', __DIR__ . '/gdrive_credentials.json');
 
 /**
- * Checks if the Google Drive credentials file exists.
+ * Checks if the Google Drive credentials are configured.
  */
 function gdrive_is_configured() {
-    return file_exists(GDRIVE_CREDENTIALS_FILE);
+    global $appConfig;
+    return !empty($appConfig['gdrive']['refresh_token']) || file_exists(GDRIVE_CREDENTIALS_FILE);
 }
 
 /**
@@ -35,25 +40,28 @@ function gdrive_get_access_token() {
     static $cached = null;
     if ($cached !== null) return $cached;
 
-    if (!file_exists(GDRIVE_CREDENTIALS_FILE)) {
-        return ['error' => 'Credentials file not found at ' . GDRIVE_CREDENTIALS_FILE];
+    global $appConfig;
+    $gdriveCfg = $appConfig['gdrive'] ?? [];
+
+    $creds = [];
+    if (file_exists(GDRIVE_CREDENTIALS_FILE)) {
+        $creds = json_decode(file_get_contents(GDRIVE_CREDENTIALS_FILE), true) ?: [];
     }
 
-    $creds = json_decode(file_get_contents(GDRIVE_CREDENTIALS_FILE), true);
-    if (!$creds) {
-        return ['error' => 'Invalid credentials JSON format'];
-    }
+    $clientId     = !empty($gdriveCfg['client_id'])     ? $gdriveCfg['client_id']     : ($creds['client_id'] ?? '');
+    $clientSecret = !empty($gdriveCfg['client_secret']) ? $gdriveCfg['client_secret'] : ($creds['client_secret'] ?? '');
+    $refreshToken = !empty($gdriveCfg['refresh_token']) ? $gdriveCfg['refresh_token'] : ($creds['refresh_token'] ?? '');
 
     // Check if OAuth 2.0 Client Credentials (User Account) are provided
-    if (isset($creds['refresh_token']) && isset($creds['client_id']) && isset($creds['client_secret'])) {
+    if (!empty($refreshToken) && !empty($clientId) && !empty($clientSecret)) {
         $url = 'https://oauth2.googleapis.com/token';
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
-            'client_id'     => $creds['client_id'],
-            'client_secret' => $creds['client_secret'],
-            'refresh_token' => $creds['refresh_token'],
+            'client_id'     => $clientId,
+            'client_secret' => $clientSecret,
+            'refresh_token' => $refreshToken,
             'grant_type'    => 'refresh_token'
         ]));
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/x-www-form-urlencoded']);

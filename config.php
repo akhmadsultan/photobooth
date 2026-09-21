@@ -27,6 +27,10 @@ function _env(string $key, $default = null) {
     return $_ENV[$key] ?? getenv($key) ?: $default;
 }
 
+// ── Auto-load credentials JSON (saved by authorize.php) ───
+$credsFile = __DIR__ . '/php/gdrive_credentials.json';
+$fileCreds = file_exists($credsFile) ? (json_decode(file_get_contents($credsFile), true) ?: []) : [];
+
 return [
     // ── Application Settings ─────────────────────────────────
     'app_name'         => _env('APP_NAME', 'Photobooth Undersea'),
@@ -36,10 +40,10 @@ return [
     // ── Google Drive API Settings ───────────────────────────
     'gdrive' => [
         'enabled'              => filter_var(_env('GDRIVE_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
-        'client_id'            => _env('GDRIVE_CLIENT_ID'),
-        'client_secret'        => _env('GDRIVE_CLIENT_SECRET'),
-        'refresh_token'        => _env('GDRIVE_REFRESH_TOKEN'),
+        'client_id'            => _env('GDRIVE_CLIENT_ID', $fileCreds['client_id'] ?? null),
+        'client_secret'        => _env('GDRIVE_CLIENT_SECRET', $fileCreds['client_secret'] ?? null),
+        'refresh_token'        => _env('GDRIVE_REFRESH_TOKEN', $fileCreds['refresh_token'] ?? null),
         'service_account_json' => __DIR__ . '/gdrive_service_account.json',
-        'parent_folder_id'     => _env('GDRIVE_PARENT_FOLDER_ID', '1svxiGrt6M3K4DUmdYTJ1SYhDb9zov90G'),
+        'parent_folder_id'     => _env('GDRIVE_PARENT_FOLDER_ID', $fileCreds['parent_folder_id'] ?? ''),
     ]
 ];
