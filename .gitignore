@@ -3,3 +3,6 @@ gdrive_service_account.json
 .env
 uploads/
 .md
+php/.gdrive_token_cache.json
+.agents/
+AGENTS.md

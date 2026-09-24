@@ -118,7 +118,7 @@ main{max-width:1200px;margin:0 auto;padding:32px 24px;}
 <!-- Custom Undersea Confirm Modal -->
 <div id="confirmModal" class="lb" style="display:none; z-index: 10000; background: rgba(13, 58, 128, 0.95); align-items: center; justify-content: center;">
   <div style="background: rgba(255, 255, 255, 0.95); border: 4px solid var(--yellow); border-radius: 24px; padding: 32px; max-width: 420px; width: 90%; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: fu 0.3s ease both; backdrop-filter: blur(8px);">
-    <h3 style="font-family: var(--f-display); font-size: 26px; color: var(--ocean-dark); margin-bottom: 12px; -webkit-text-stroke: 1px var(--brand-stroke); paint-order: stroke fill;">Hapus Foto? 🗑️</h3>
+    <h3 style="font-family: var(--f-display); font-size: 26px; color: var(--ocean-dark); margin-bottom: 12px; -webkit-text-stroke: 1px var(--brand-stroke); paint-order: stroke fill;">Hapus Foto?</h3>
     <p style="font-family: var(--f-mono); font-size: 13px; color: #333; margin-bottom: 24px;" id="confirmModalMsg">Apakah Anda yakin ingin menghapus foto ini?</p>
     <div style="display: flex; gap: 14px; justify-content: center;">
       <button class="cbtn d" id="confirmModalYes" style="flex: 1; font-size: 11px; padding: 10px; font-weight: 800;">Ya, Hapus</button>

@@ -110,17 +110,10 @@ const U = (() => {
     ctx.putImageData(id,0,0);
   }
 
-  /* Toast helper */
+  /* Toast helper - disabled per user request */
   function toast(msg, type='info', dur=3500){
-    const c=document.getElementById('toasts');
-    if(!c) return;
-    const el=document.createElement('div');
-    el.className=`toast ${type}`;
-    el.textContent=msg;
-    c.appendChild(el);
-    const rm=()=>{ el.classList.add('out'); setTimeout(()=>el.remove(),300); };
-    const t=setTimeout(rm,dur);
-    el.addEventListener('click',()=>{ clearTimeout(t);rm(); });
+    // Suppressed UI toast notification per user request
+    console.log(`[Toast ${type}]`, msg);
   }
 
   return { Emitter, FPS, clamp, lerp, sleep, dataURLtoBlob, download, applyPixelFilter, toast };

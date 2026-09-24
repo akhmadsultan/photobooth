@@ -16,11 +16,10 @@ $sid = $_SESSION['pb_session'];
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Immersive Fiesta Photobooth</title>
-<meta name="description" content="Immersive Fiesta Photobooth — Capture your moment with Purple Galaxy style">
+<meta name="description" content="Immersive Fiesta Photobooth: Capture your moment in Purple Galaxy style">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/v2.css?v=6">
+<link rel="stylesheet" href="css/v2.css?v=<?= filemtime(__DIR__ . '/css/v2.css') ?>">
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
 <script src="js/omggif.js"></script>
@@ -112,75 +111,16 @@ $sid = $_SESSION['pb_session'];
         <div class="selector-grid" id="framePicker">
           <button class="sel-item active g-click" data-frame="frame1">
             <div class="sel-preview" style="background-image: url('assets/frames/frame1.png'); background-size: cover; background-position: center; border-radius: 6px; border: 1.5px solid rgba(255,255,255,.5);"></div>
-            <span>Undersea 1</span>
+            <span>World 1</span>
           </button>
           <button class="sel-item g-click" data-frame="frame2">
             <div class="sel-preview" style="background-image: url('assets/frames/frame2.png'); background-size: cover; background-position: center; border-radius: 6px; border: 1.5px solid rgba(255,255,255,.5);"></div>
-            <span>Undersea 2</span>
+            <span>World 2</span>
           </button>
           <button class="sel-item g-click" data-frame="frame3">
             <div class="sel-preview" style="background-image: url('assets/frames/frame3.png'); background-size: cover; background-position: center; border-radius: 6px; border: 1.5px solid rgba(255,255,255,.5);"></div>
-            <span>Undersea 3</span>
+            <span>World 3</span>
           </button>
-          <button class="sel-item g-click" data-frame="upload">
-            <div class="sel-preview sp-upload">
-              <div class="sp-upload-inner">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="17 8 12 3 7 8"/>
-                  <line x1="12" y1="3" x2="12" y2="15"/>
-                </svg>
-              </div>
-            </div>
-            <span>Upload</span>
-          </button>
-        </div>
-      </section>
-
-      <!-- Custom Canva/Figma Upload Panel -->
-      <section class="selector-block upload-block" id="uploadBlock" style="display:none;">
-        <h3 class="selector-title">Custom Frame 🎨</h3>
-        
-        <!-- Action: Download Template Guide -->
-        <button class="up-dl-btn g-click" id="btnDlTemplate" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          Download Guide Template
-        </button>
-        <p class="up-help-text">Dapatkan file panduan ukuran 420x1322px untuk diedit di Canva/Figma/Illustrator.</p>
-
-        <!-- Dropzone / File Upload -->
-        <div class="up-dropzone g-click" id="upDropzone">
-          <input type="file" id="upFileInput" accept="image/png, image/jpeg" style="display:none;">
-          <div class="up-dz-content">
-            <svg class="up-dz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/>
-              <polyline points="21 15 16 10 5 21"/>
-            </svg>
-            <span class="up-dz-label" id="upDzLabel">Pilih atau Seret Desain Bingkai</span>
-            <span class="up-dz-sub">PNG transparan / JPG</span>
-          </div>
-        </div>
-
-        <!-- Settings: Mode & Background Color -->
-        <div class="up-settings">
-          <div class="up-control">
-            <label class="up-label">Drawing Mode</label>
-            <select id="upMode" class="up-select g-click">
-              <option value="overlay">Overlay (PNG transparan)</option>
-              <option value="background">Background (JPG/PNG solid)</option>
-            </select>
-          </div>
-          <div class="up-control" id="upColorCtrl">
-            <label class="up-label">Background Color</label>
-            <div class="color-picker-wrapper g-click">
-              <input type="color" id="upBgColor" value="#ffffff">
-            </div>
-          </div>
         </div>
       </section>
 
@@ -292,13 +232,13 @@ $sid = $_SESSION['pb_session'];
 
       <!-- Capture row: stickers LEFT | capture button | stickers RIGHT -->
       <div class="cam-controls">
-        <p class="cam-hint" id="camHint">Open palm to start — or tap capture</p>
+        <p class="cam-hint" id="camHint">Open palm to start, or tap capture</p>
 
         <div class="cam-btns-row">
 
           <!-- Core buttons -->
           <div class="cam-btns">
-            <button class="btn-reset g-click" id="btnReset" title="Reset session">
+            <button class="btn-reset g-click" id="btnReset" title="Reset session (Mulai dari awal)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <polyline points="1 4 1 10 7 10"/>
                 <path d="M3.51 15a9 9 0 1 0 .49-3.18"/>
@@ -317,8 +257,17 @@ $sid = $_SESSION['pb_session'];
 
         </div><!-- /cam-btns-row -->
 
-        <!-- Clear stickers link -->
-        <button class="stk-clear-inline g-click" id="btnClearStickers">Clear stickers</button>
+        <!-- Actions under capture: Undo & Clear stickers -->
+        <div class="cam-actions-bottom">
+          <button class="stk-clear-inline btn-undo-pill g-click" id="btnRetake" title="Undo foto terakhir" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+              <path d="M3 10h10a5 5 0 0 1 5 5v2"/>
+              <path d="M7 6L3 10l4 4"/>
+            </svg>
+            <span>Undo Foto</span>
+          </button>
+          <button class="stk-clear-inline g-click" id="btnClearStickers">Clear stickers</button>
+        </div>
 
       </div><!-- /cam-controls -->
 
@@ -344,15 +293,18 @@ $sid = $_SESSION['pb_session'];
 
         <div class="output-actions" id="outActions" style="display:none">
           <!-- Preview label -->
-          <p class="oa-label">Foto selesai! Cek preview di kanan 👉</p>
+          <p class="oa-label">Foto selesai! Cek preview di panel kanan</p>
           <div class="oa-btn-row">
             <button class="oa-btn oa-ghost g-click" id="btnRetakePreview">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.6"/></svg>
-              Foto Ulang
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                <path d="M3 10h10a5 5 0 0 1 5 5v2"/>
+                <path d="M7 6L3 10l4 4"/>
+              </svg>
+              Undo Foto ke-4
             </button>
             <button class="oa-btn oa-primary oa-qris g-click" id="btnShowQR">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/></svg>
-              Ambil Foto via QRIS
+              Ambil Foto 
             </button>
           </div>
         </div>
@@ -378,8 +330,8 @@ $sid = $_SESSION['pb_session'];
 
 </div><!-- /app -->
 
-<!-- Toast container -->
-<div class="toasts" id="toasts"></div>
+<!-- Toast container (disabled) -->
+<div class="toasts" id="toasts" style="display:none;"></div>
 
 <!-- Global Touchless Cursor -->
 <div class="global-cursor" id="globalCursor" style="display:none">
@@ -413,17 +365,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }, { once: true });
 });
 </script>
-<script src="js/v2-utils.js?v=10"></script>
-<script src="js/v2-audio.js?v=10"></script>
-<script src="js/v2-webrtc.js?v=10"></script>
-<script src="js/v2-gesture.js?v=11"></script>
-<script src="js/v2-filters.js?v=10"></script>
-<script src="js/v2-strip.js?v=10"></script>
-<script src="js/v2-gif.js?v=10"></script>
-<script src="js/v2-api.js?v=13"></script>
-<script src="js/v2-stickers.js?v=10"></script>
-<script src="js/v2-workflow.js?v=8"></script>
-<script src="js/v2-app.js?v=14"></script>
+<script src="js/v2-utils.js?v=<?= filemtime(__DIR__ . '/js/v2-utils.js') ?>"></script>
+<script src="js/v2-audio.js?v=<?= filemtime(__DIR__ . '/js/v2-audio.js') ?>"></script>
+<script src="js/v2-webrtc.js?v=<?= filemtime(__DIR__ . '/js/v2-webrtc.js') ?>"></script>
+<script src="js/v2-gesture.js?v=<?= filemtime(__DIR__ . '/js/v2-gesture.js') ?>"></script>
+<script src="js/v2-filters.js?v=<?= filemtime(__DIR__ . '/js/v2-filters.js') ?>"></script>
+<script src="js/v2-strip.js?v=<?= filemtime(__DIR__ . '/js/v2-strip.js') ?>"></script>
+<script src="js/v2-gif.js?v=<?= filemtime(__DIR__ . '/js/v2-gif.js') ?>"></script>
+<script src="js/v2-api.js?v=<?= filemtime(__DIR__ . '/js/v2-api.js') ?>"></script>
+<script src="js/v2-stickers.js?v=<?= filemtime(__DIR__ . '/js/v2-stickers.js') ?>"></script>
+<script src="js/v2-workflow.js?v=<?= filemtime(__DIR__ . '/js/v2-workflow.js') ?>"></script>
+<script src="js/v2-app.js?v=<?= filemtime(__DIR__ . '/js/v2-app.js') ?>"></script>
 
 <script>
 function StickerAdd(id) {
@@ -445,15 +397,15 @@ function StickerAdd(id) {
         <circle class="pbs-fill" cx="25" cy="25" r="20" fill="none" stroke-width="4"/>
       </svg>
     </div>
-    <div class="pb-processing-icon">📸</div>
+    <div class="pb-processing-icon"></div>
     <p class="pb-processing-title">Sedang Diproses</p>
     <p class="pb-processing-text" id="pbProcessingText">Memproses foto Anda...</p>
-    <div class="pb-processing-steps">
-      <div class="pbs-step pbs-active"><span>📷</span> Foto</div>
-      <div class="pbs-step"><span>🎞</span> Strip</div>
-      <div class="pbs-step"><span>🎬</span> GIF</div>
-      <div class="pbs-step"><span>☁️</span> Upload</div>
-      <div class="pbs-step"><span>🔗</span> QR</div>
+    <div class="pb-processing-steps" id="pbProcessingSteps">
+      <div class="pbs-step" data-step="1"><span>1</span> Foto</div>
+      <div class="pbs-step" data-step="2"><span>2</span> Strip</div>
+      <div class="pbs-step" data-step="3"><span>3</span> GIF</div>
+      <div class="pbs-step" data-step="4"><span>4</span> Upload</div>
+      <div class="pbs-step" data-step="5"><span>5</span> QR</div>
     </div>
   </div>
 </div>
@@ -479,7 +431,7 @@ function StickerAdd(id) {
       <div class="pbqr-code-frame">
         <div id="pbQRCode" class="pbqr-code"></div>
       </div>
-      <p class="pbqr-scan-hint">📱 Arahkan kamera HP ke QR Code</p>
+      <p class="pbqr-scan-hint">Arahkan kamera ponsel ke QR Code</p>
     </div>
 
     <!-- Action Buttons -->

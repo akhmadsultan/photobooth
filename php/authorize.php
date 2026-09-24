@@ -66,7 +66,7 @@ if (isset($_GET['code'])) {
     echo 'h1{font-size:24px;margin-top:0;} p{line-height:1.6;color:#9bc5df;} .btn{display:inline-block;background:#2ecfb0;color:#07142a;text-decoration:none;font-weight:700;padding:12px 24px;border-radius:8px;margin:8px;transition:0.2s;} .btn:hover{background:#38efcb;} .btn-sec{background:rgba(255,255,255,0.15);color:#fff;} pre{background:#040c1a;padding:15px;border-radius:8px;text-align:left;overflow-x:auto;color:#ff8787;font-size:12px;}</style></head><body><div class="card">';
 
     if ($status >= 400 || empty($data['refresh_token'])) {
-        echo '<h1 style="color:#ff6b6b;">⚠️ Otorisasi Belum Berhasil</h1>';
+        echo '<h1 style="color:#ff6b6b;">Otorisasi Belum Berhasil</h1>';
         echo '<p>Google tidak mengembalikan <code>refresh_token</code>.</p>';
         if ($curlErr) {
             echo '<p style="color:#ff6b6b;">cURL Error: ' . htmlspecialchars($curlErr) . '</p>';
@@ -90,11 +90,11 @@ if (isset($_GET['code'])) {
         // Also sync or create .env
         _syncToEnv($newCreds);
 
-        echo '<h1 style="color:#2ecfb0;">🎉 Berhasil Terhubung!</h1>';
+        echo '<h1 style="color:#2ecfb0;">Berhasil Terhubung!</h1>';
         echo '<p>Google Drive Anda berhasil dihubungkan ke sistem Photobooth. Refresh token sudah tersimpan otomatis.</p>';
         echo '<div style="margin-top:24px;">';
-        echo '<a href="test_gdrive.php" class="btn btn-sec" target="_blank">🧪 Uji Upload ke Drive</a>';
-        echo '<a href="../index.php" class="btn">🚀 Buka Photobooth</a>';
+        echo '<a href="test_gdrive.php" class="btn btn-sec" target="_blank">Uji Upload ke Drive</a>';
+        echo '<a href="../index.php" class="btn">Buka Photobooth</a>';
         echo '</div>';
     }
     echo '</div></body></html>';
@@ -319,7 +319,7 @@ function _syncToEnv(array $creds): void {
 <body>
 <div class="container">
     <div class="card">
-        <h1>☁️ Hubungkan Google Drive (OAuth 2.0)</h1>
+        <h1>Hubungkan Google Drive (OAuth 2.0)</h1>
 
         <?php if ($isConnected): ?>
             <div class="badge-status badge-connected">
@@ -366,10 +366,10 @@ function _syncToEnv(array $creds): void {
 
             <div class="actions">
                 <button type="submit" name="submit">
-                    <?= $isConnected ? '🔄 Hubungkan Ulang Akun Google' : '🚀 Hubungkan Akun Google Drive' ?>
+                    <?= $isConnected ? 'Hubungkan Ulang Akun Google' : 'Hubungkan Akun Google Drive' ?>
                 </button>
                 <?php if ($isConnected): ?>
-                    <a href="test_gdrive.php" class="btn-link" target="_blank">🧪 Uji Koneksi</a>
+                    <a href="test_gdrive.php" class="btn-link" target="_blank">Uji Koneksi</a>
                 <?php endif; ?>
                 <a href="../index.php" class="btn-link">Kembali</a>
             </div>

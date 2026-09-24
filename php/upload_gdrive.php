@@ -113,17 +113,25 @@ try {
     } else {
         $parentFolderId = null;
     }
+
     $folderId = _createGDriveFolder($accessToken, $folderName, $parentFolderId);
+
+    // If folder creation failed, token might have expired/revoked: clear cache and retry once
+    if (!$folderId) {
+        _clearGDriveTokenCache();
+        $accessToken = _getGDriveAccessToken($gdriveCfg, true);
+        if ($accessToken) {
+            $folderId = _createGDriveFolder($accessToken, $folderName, $parentFolderId);
+        }
+    }
+
     if (!$folderId) {
         throw new Exception('Failed to create folder on Google Drive');
     }
 
-    // 2. Make Folder Public
-    _makeGDrivePublic($accessToken, $folderId);
     $folderWebUrl = "https://drive.google.com/drive/folders/{$folderId}";
 
-    // 3. Upload files to created folder
-    $gdriveUrls = [];
+    // 2. Parallel Upload Files & Share Folder via curl_multi
     $targetFiles = [
         'strip.png'     => 'photo_strip_url',
         'frame_0.jpg'   => 'photo1_url',
@@ -133,25 +141,82 @@ try {
         'boomerang.gif' => 'gif_url'
     ];
 
+    $mh = curl_multi_init();
+    $curlHandles = [];
+
+    // Make folder public in parallel with file uploads to save round-trip time
+    $permHandle = curl_init("https://www.googleapis.com/drive/v3/files/{$folderId}/permissions");
+    curl_setopt_array($permHandle, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
+        CURLOPT_CONNECTTIMEOUT => 8,
+        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_TCP_NODELAY    => 1,
+        CURLOPT_HTTPHEADER     => [
+            "Authorization: Bearer {$accessToken}",
+            'Content-Type: application/json'
+        ],
+        CURLOPT_POSTFIELDS     => json_encode([
+            'role' => 'reader',
+            'type' => 'anyone'
+        ])
+    ]);
+    curl_multi_add_handle($mh, $permHandle);
+
+    // Prepare each file upload handle for parallel execution
     foreach ($targetFiles as $filename => $fieldKey) {
         $filePath = $sessionDir . $filename;
         if (file_exists($filePath)) {
             $mimeType = _getMimeType($filename);
-            $fileId = _uploadFileToGDrive($accessToken, $filePath, $filename, $mimeType, $folderId);
-            if ($fileId) {
-                // Web view link or direct view URL
-                $gdriveUrls[$fieldKey] = "https://drive.google.com/uc?export=view&id={$fileId}";
+            $ch = _initUploadCurlHandle($accessToken, $filePath, $filename, $mimeType, $folderId);
+            if ($ch) {
+                curl_multi_add_handle($mh, $ch);
+                $curlHandles[$fieldKey] = [
+                    'handle'   => $ch,
+                    'filename' => $filename
+                ];
+            }
+        }
+    }
+
+    // Execute all uploads and permission request simultaneously
+    $running = null;
+    do {
+        $mrc = curl_multi_exec($mh, $running);
+        if ($running > 0) {
+            curl_multi_select($mh, 0.05);
+        }
+    } while ($running > 0 && $mrc === CURLM_OK);
+
+    // Clean up permission handle
+    curl_multi_remove_handle($mh, $permHandle);
+    curl_close($permHandle);
+
+    // Collect responses for all file uploads
+    $gdriveUrls = [];
+    foreach ($targetFiles as $filename => $fieldKey) {
+        if (isset($curlHandles[$fieldKey])) {
+            $ch = $curlHandles[$fieldKey]['handle'];
+            $raw = curl_multi_getcontent($ch);
+            $res = json_decode($raw, true);
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+
+            if (!empty($res['id'])) {
+                $gdriveUrls[$fieldKey] = "https://drive.google.com/uc?export=view&id={$res['id']}";
             } else {
-                $gdriveUrls[$fieldKey] = $localFiles[str_replace('_url','',$fieldKey)] ?? "{$baseUrl}{$filename}";
+                $gdriveUrls[$fieldKey] = $localFiles[str_replace('_url', '', $fieldKey)] ?? "{$baseUrl}{$filename}";
             }
         } else {
             $gdriveUrls[$fieldKey] = "{$baseUrl}{$filename}";
         }
     }
+    curl_multi_close($mh);
 
     $response = [
         'success'                 => true,
-        'is_gdrive'              => true,
+        'is_gdrive'               => true,
         'message'                 => 'Files successfully uploaded to Google Drive',
         'folder_name'             => $folderName,
         'google_drive_folder_url' => $folderWebUrl,
@@ -176,7 +241,22 @@ try {
 }
 
 // ── Google Drive API Helpers ────────────────────────────────────────────────
-function _getGDriveAccessToken(array $cfg): ?string {
+function _clearGDriveTokenCache(): void {
+    $cacheFile = __DIR__ . '/.gdrive_token_cache.json';
+    if (file_exists($cacheFile)) {
+        @unlink($cacheFile);
+    }
+}
+
+function _getGDriveAccessToken(array $cfg, bool $forceRefresh = false): ?string {
+    $cacheFile = __DIR__ . '/.gdrive_token_cache.json';
+    if (!$forceRefresh && file_exists($cacheFile)) {
+        $cache = json_decode(@file_get_contents($cacheFile), true);
+        if (!empty($cache['access_token']) && !empty($cache['expires_at']) && $cache['expires_at'] > (time() + 180)) {
+            return $cache['access_token'];
+        }
+    }
+
     if (!empty($cfg['service_account_json']) && file_exists($cfg['service_account_json'])) {
         // Service Account JWT token exchange
         $sa = json_decode(file_get_contents($cfg['service_account_json']), true);
@@ -197,30 +277,58 @@ function _getGDriveAccessToken(array $cfg): ?string {
         $jwt = $signatureInput . '.' . base64_encode($signature);
         
         $ch = curl_init('https://oauth2.googleapis.com/token');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
-            'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-            'assertion'  => $jwt
-        ]));
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_TCP_NODELAY    => 1,
+            CURLOPT_POSTFIELDS     => http_build_query([
+                'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'assertion'  => $jwt
+            ])
+        ]);
         $res = json_decode(curl_exec($ch), true);
         curl_close($ch);
-        return $res['access_token'] ?? null;
+        $token = $res['access_token'] ?? null;
+        if ($token) {
+            $expiresIn = (int)($res['expires_in'] ?? 3500);
+            @file_put_contents($cacheFile, json_encode([
+                'access_token' => $token,
+                'expires_at'   => time() + $expiresIn
+            ]));
+        }
+        return $token;
     }
 
     if (!empty($cfg['refresh_token']) && !empty($cfg['client_id']) && !empty($cfg['client_secret'])) {
         $ch = curl_init('https://oauth2.googleapis.com/token');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
-            'client_id'     => $cfg['client_id'],
-            'client_secret' => $cfg['client_secret'],
-            'refresh_token' => $cfg['refresh_token'],
-            'grant_type'    => 'refresh_token'
-        ]));
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_TCP_NODELAY    => 1,
+            CURLOPT_POSTFIELDS     => http_build_query([
+                'client_id'     => $cfg['client_id'],
+                'client_secret' => $cfg['client_secret'],
+                'refresh_token' => $cfg['refresh_token'],
+                'grant_type'    => 'refresh_token'
+            ])
+        ]);
         $res = json_decode(curl_exec($ch), true);
         curl_close($ch);
-        return $res['access_token'] ?? null;
+        $token = $res['access_token'] ?? null;
+        if ($token) {
+            $expiresIn = (int)($res['expires_in'] ?? 3500);
+            @file_put_contents($cacheFile, json_encode([
+                'access_token' => $token,
+                'expires_at'   => time() + $expiresIn
+            ]));
+        }
+        return $token;
     }
     return null;
 }
@@ -230,13 +338,19 @@ function _createGDriveFolder(string $token, string $folderName, ?string $parentI
     if (!empty($parentId)) $meta['parents'] = [$parentId];
     
     $ch = curl_init('https://www.googleapis.com/drive/v3/files');
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Authorization: Bearer {$token}",
-        'Content-Type: application/json'
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
+        CURLOPT_CONNECTTIMEOUT => 8,
+        CURLOPT_TIMEOUT        => 20,
+        CURLOPT_TCP_NODELAY    => 1,
+        CURLOPT_HTTPHEADER     => [
+            "Authorization: Bearer {$token}",
+            'Content-Type: application/json'
+        ],
+        CURLOPT_POSTFIELDS     => json_encode($meta)
     ]);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($meta));
     $raw = curl_exec($ch);
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
@@ -246,13 +360,19 @@ function _createGDriveFolder(string $token, string $folderName, ?string $parentI
     if (($status >= 400 || empty($res['id'])) && !empty($parentId)) {
         unset($meta['parents']);
         $ch2 = curl_init('https://www.googleapis.com/drive/v3/files');
-        curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch2, CURLOPT_POST, true);
-        curl_setopt($ch2, CURLOPT_HTTPHEADER, [
-            "Authorization: Bearer {$token}",
-            'Content-Type: application/json'
+        curl_setopt_array($ch2, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_TIMEOUT        => 20,
+            CURLOPT_TCP_NODELAY    => 1,
+            CURLOPT_HTTPHEADER     => [
+                "Authorization: Bearer {$token}",
+                'Content-Type: application/json'
+            ],
+            CURLOPT_POSTFIELDS     => json_encode($meta)
         ]);
-        curl_setopt($ch2, CURLOPT_POSTFIELDS, json_encode($meta));
         $res = json_decode(curl_exec($ch2), true);
         curl_close($ch2);
     }
@@ -260,8 +380,8 @@ function _createGDriveFolder(string $token, string $folderName, ?string $parentI
     return $res['id'] ?? null;
 }
 
-function _uploadFileToGDrive(string $token, string $filePath, string $name, string $mime, string $folderId): ?string {
-    $boundary = '-------' . md5(time());
+function _initUploadCurlHandle(string $token, string $filePath, string $name, string $mime, string $folderId) {
+    $boundary = '-------' . md5(microtime(true) . $name);
     $meta = json_encode(['name' => $name, 'parents' => [$folderId]]);
     
     $fileData = file_get_contents($filePath);
@@ -274,13 +394,26 @@ function _uploadFileToGDrive(string $token, string $filePath, string $name, stri
             "--{$boundary}--";
 
     $ch = curl_init('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Authorization: Bearer {$token}",
-        "Content-Type: multipart/related; boundary={$boundary}"
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_TIMEOUT        => 60,
+        CURLOPT_TCP_NODELAY    => 1,
+        CURLOPT_HTTPHEADER     => [
+            "Authorization: Bearer {$token}",
+            "Content-Type: multipart/related; boundary={$boundary}",
+            "Content-Length: " . strlen($body)
+        ],
+        CURLOPT_POSTFIELDS     => $body
     ]);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+    return $ch;
+}
+
+function _uploadFileToGDrive(string $token, string $filePath, string $name, string $mime, string $folderId): ?string {
+    $ch = _initUploadCurlHandle($token, $filePath, $name, $mime, $folderId);
+    if (!$ch) return null;
     $res = json_decode(curl_exec($ch), true);
     curl_close($ch);
     return $res['id'] ?? null;
@@ -288,16 +421,22 @@ function _uploadFileToGDrive(string $token, string $filePath, string $name, stri
 
 function _makeGDrivePublic(string $token, string $fileOrFolderId): void {
     $ch = curl_init("https://www.googleapis.com/drive/v3/files/{$fileOrFolderId}/permissions");
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Authorization: Bearer {$token}",
-        'Content-Type: application/json'
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
+        CURLOPT_CONNECTTIMEOUT => 8,
+        CURLOPT_TIMEOUT        => 20,
+        CURLOPT_TCP_NODELAY    => 1,
+        CURLOPT_HTTPHEADER     => [
+            "Authorization: Bearer {$token}",
+            'Content-Type: application/json'
+        ],
+        CURLOPT_POSTFIELDS     => json_encode([
+            'role' => 'reader',
+            'type' => 'anyone'
+        ])
     ]);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-        'role' => 'reader',
-        'type' => 'anyone'
-    ]));
     curl_exec($ch);
     curl_close($ch);
 }

@@ -334,13 +334,16 @@ const App = (() => {
     }
 
     const idx=Strip.add(finalDataURL);
-    S.photoCount++;
+    S.photoCount = Strip.count();
     _updateFrameBadge();
     document.getElementById('stripCt').textContent=`${S.photoCount}/4`;
     const btnRetake = document.getElementById('btnRetake');
-    if (btnRetake) btnRetake.style.display = 'inline-flex';
+    if (btnRetake) {
+      btnRetake.style.display = S.photoCount > 0 ? 'inline-flex' : 'none';
+      btnRetake.title = `Undo foto ke-${S.photoCount}`;
+    }
 
-    U.toast(`Frame ${idx+1} captured`,'success',1200);
+    U.toast(`Frame ${idx+1} berhasil diambil`,'success',1200);
 
     if(Strip.isComplete()) await _onComplete();
     else {
@@ -369,7 +372,14 @@ const App = (() => {
     const cv = document.getElementById('stripCanvas');
     if (cv) cv.style.display = 'block';
 
-    U.toast('Foto selesai! Periksa hasil di preview, klik "Selesai & Bayar QRIS" untuk lanjut.', 'info', 5000);
+    // Keep undo button visible in camera controls as well
+    const btnRetake = document.getElementById('btnRetake');
+    if (btnRetake) {
+      btnRetake.style.display = 'inline-flex';
+      btnRetake.title = 'Undo foto ke-4';
+    }
+
+    U.toast('Foto selesai! Periksa hasil di preview, klik "Ambil Foto via QRIS" untuk lanjut, atau tombol Undo jika ingin mengulang foto.', 'info', 5000);
     btnCapture.disabled=false;
   }
 
@@ -451,17 +461,31 @@ const App = (() => {
       _resetSession();
     });
 
-    document.getElementById('btnRetake')?.addEventListener('click',()=>{
+    /* ── Centralized Undo Last Photo ───────────────────────── */
+    function _undoLastPhoto() {
       window.SFX?.click?.();
-      if(S.phase==='countdown'||S.phase==='capturing') return;
+      if (S.phase === 'countdown' || S.phase === 'capturing') return;
+      if (Strip.count() === 0) return;
+
       const count = Strip.retakeLast();
       S.photoCount = count;
       _updateFrameBadge();
-      document.getElementById('stripCt').textContent = `${count}/4`;
+      const stripCt = document.getElementById('stripCt');
+      if (stripCt) stripCt.textContent = `${count}/4`;
+
       const btnRetake = document.getElementById('btnRetake');
-      if (count === 0 && btnRetake) {
-        btnRetake.style.display = 'none';
+      if (btnRetake) {
+        btnRetake.style.display = count > 0 ? 'inline-flex' : 'none';
+        if (count > 0) btnRetake.title = `Undo foto ke-${count}`;
       }
+
+      if (count === 0) {
+        const stripPh = document.getElementById('stripPh');
+        if (stripPh) stripPh.style.display = 'flex';
+        const stripCanvas = document.getElementById('stripCanvas');
+        if (stripCanvas) stripCanvas.style.display = 'none';
+      }
+
       if (S.phase === 'done' || S.phase === 'preview') {
         S.phase = 'ready';
         const outActions = document.getElementById('outActions');
@@ -470,10 +494,14 @@ const App = (() => {
         Gesture.resume();
         Gesture.resetCooldown();
       }
+
       if (btnCapture) btnCapture.disabled = false;
       _setStatus('active', count === 0 ? 'Ready' : `${4 - count} more`);
-      U.toast('Foto terakhir dihapus (retake)', 'info');
-    });
+      U.toast(`Foto ke-${count + 1} dibatalkan (Undo). Silakan ambil foto lagi!`, 'info', 2000);
+    }
+
+    document.getElementById('btnRetake')?.addEventListener('click', _undoLastPhoto);
+    document.getElementById('btnRetakePreview')?.addEventListener('click', _undoLastPhoto);
 
     // ── Show QRIS / Workflow Trigger ─────────────────────────
     document.getElementById('btnShowQR')?.addEventListener('click', async () => {
@@ -489,24 +517,6 @@ const App = (() => {
         console.error('[App] Workflow error:', e);
         U.toast('Workflow error: ' + e.message, 'error', 8000);
       }
-    });
-
-    // ── Retake Last from Preview ──────────────────────────────
-    document.getElementById('btnRetakePreview')?.addEventListener('click', () => {
-      window.SFX?.click?.();
-      const count = Strip.retakeLast();
-      S.photoCount = count;
-      _updateFrameBadge();
-      document.getElementById('stripCt').textContent = `${count}/4`;
-      S.phase = 'ready';
-      const outActions = document.getElementById('outActions');
-      if (outActions) outActions.style.display = 'none';
-      Gesture.setEnabled(true);
-      Gesture.resume();
-      Gesture.resetCooldown();
-      if (btnCapture) btnCapture.disabled = false;
-      _setStatus('active', `${4 - count} photo left`);
-      U.toast('Foto terakhir dihapus. Silakan foto ulang!', 'info');
     });
 
     // ── Reset All from Preview ───────────────────────────────
@@ -622,9 +632,13 @@ const App = (() => {
       if(confirm('Start new session? Current photos will be lost.')) location.reload();
     });
 
-    // Space = capture
+    // Space = capture, Ctrl+Z / Z = Undo
     document.addEventListener('keydown',e=>{
       if(e.code==='Space'&&S.phase==='ready'){ e.preventDefault(); _runCapture(); }
+      if((e.code==='KeyZ' || e.key==='z' || e.key==='Z') && (e.ctrlKey || e.metaKey)){
+        e.preventDefault();
+        _undoLastPhoto();
+      }
     });
 
     // ── QR Screen buttons ──────────────────────────────────

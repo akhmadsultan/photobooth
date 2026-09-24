@@ -21,12 +21,14 @@ const Workflow = (() => {
   async function run(frames, sessionId) {
     console.log('[Workflow] run() — session:', sessionId);
 
-    /* ── Show processing overlay ── */
-    _showProcessingOverlay(true, 'Memproses foto Anda...');
+    /* ── Step 1: Menyiapkan Foto ── */
+    _showProcessingOverlay(true, 'Menyiapkan foto Anda...', 1);
+    await new Promise(r => setTimeout(r, 450));
 
-    /* ── Step 1: Save strip + frames to server ── */
+    /* ── Step 2: Save strip + frames to server ── */
     try {
-      _updateProcessing('Menyimpan foto ke server...');
+      _updateProcessing('Menyusun & menyimpan Photo Strip...', 2);
+      await new Promise(r => setTimeout(r, 300));
       const stripDataURL = await Strip.getDataURL();
       if (stripDataURL) {
         await API.saveStrip(stripDataURL, frames, {
@@ -36,12 +38,13 @@ const Workflow = (() => {
         console.log('[Workflow] Strip saved OK');
       }
     } catch (e) {
-      console.warn('[Workflow] Step1 (save strip) non-fatal:', e.message);
+      console.warn('[Workflow] Step2 (save strip) non-fatal:', e.message);
     }
 
-    /* ── Step 2: Generate & save GIF ── */
+    /* ── Step 3: Generate & save GIF ── */
     try {
-      _updateProcessing('Membuat animasi GIF...');
+      _updateProcessing('Membuat animasi GIF...', 3);
+      await new Promise(r => setTimeout(r, 300));
       const gifUrl = await GifMaker.generate(frames);
       let gifBlob = (typeof GifMaker.getBlob === 'function')
         ? GifMaker.getBlob()
@@ -51,17 +54,17 @@ const Workflow = (() => {
         console.log('[Workflow] GIF saved OK');
       }
     } catch (e) {
-      console.warn('[Workflow] Step2 (GIF) non-fatal:', e.message);
+      console.warn('[Workflow] Step3 (GIF) non-fatal:', e.message);
     }
 
-    /* ── Step 3: Upload to Google Drive ── */
-    _updateProcessing('Mengunggah ke Google Drive...');
+    /* ── Step 4: Upload to Google Drive ── */
+    _updateProcessing('Mengunggah ke Google Drive...', 4);
     try {
       _driveData = await API.uploadGDrive(sessionId);
       if (!_driveData?.success) throw new Error(_driveData?.message || 'Upload gagal');
       console.log('[Workflow] GDrive upload OK');
     } catch (e) {
-      console.warn('[Workflow] Step3 (GDrive) fallback to local:', e.message);
+      console.warn('[Workflow] Step4 (GDrive) fallback to local:', e.message);
       _queueOfflineUpload(sessionId);
       const base = _localBase(sessionId);
       _driveData = {
@@ -77,8 +80,8 @@ const Workflow = (() => {
       };
     }
 
-    /* ── Step 4: Build QR URL ── */
-    _updateProcessing('Membuat QR Code...');
+    /* ── Step 5: Build QR URL ── */
+    _updateProcessing('Membuat QR Code & tautan unduh...', 5);
     let shareUrl = '';
     if (_driveData?.google_drive_folder_url && _driveData.google_drive_folder_url.includes('drive.google.com')) {
       shareUrl = _driveData.google_drive_folder_url;
@@ -90,20 +93,47 @@ const Workflow = (() => {
     }
     console.log('[Workflow] Final QR URL:', shareUrl);
 
-    /* ── Step 6: Always show QR screen ── */
+    /* Brief completion tick before opening QR screen */
+    await new Promise(r => setTimeout(r, 500));
+    _setStep(6);
+    await new Promise(r => setTimeout(r, 400));
+
+    /* ── Show QR screen ── */
     _showProcessingOverlay(false);
     setTimeout(() => _showQRScreen(shareUrl), 300);
   }
 
   /* ═══════════════════════════════════════════════
-     PROCESSING OVERLAY
+     PROCESSING OVERLAY & DYNAMIC STEPPER
      ═══════════════════════════════════════════════ */
-  function _showProcessingOverlay(visible, text) {
+  function _setStep(stepIndex) {
+    const steps = document.querySelectorAll('#pbProcessingSteps .pbs-step, .pb-processing-steps .pbs-step');
+    if (!steps || steps.length === 0) return;
+
+    steps.forEach((el, idx) => {
+      const stepNum = idx + 1;
+      const span = el.querySelector('span');
+      el.classList.remove('pbs-active', 'pbs-done');
+
+      if (stepNum < stepIndex) {
+        el.classList.add('pbs-done');
+        if (span) span.textContent = '✓';
+      } else if (stepNum === stepIndex) {
+        el.classList.add('pbs-active');
+        if (span) span.textContent = String(stepNum);
+      } else {
+        if (span) span.textContent = String(stepNum);
+      }
+    });
+  }
+
+  function _showProcessingOverlay(visible, text, stepIndex) {
     const el = document.getElementById('pbProcessingOverlay');
     if (!el) { console.warn('[Workflow] #pbProcessingOverlay not found'); return; }
     if (visible) {
       el.style.cssText = 'display:flex; opacity:1;';
       el.classList.add('visible');
+      _setStep(stepIndex || 1);
       _updateProcessing(text || 'Memproses...');
     } else {
       el.classList.remove('visible');
@@ -112,9 +142,12 @@ const Workflow = (() => {
     }
   }
 
-  function _updateProcessing(text) {
+  function _updateProcessing(text, stepIndex) {
     const el = document.getElementById('pbProcessingText');
     if (el) el.textContent = text;
+    if (typeof stepIndex === 'number') {
+      _setStep(stepIndex);
+    }
   }
 
   /* ═══════════════════════════════════════════════
@@ -273,7 +306,9 @@ const Workflow = (() => {
   return {
     run,
     hideQRScreen,
+    setStep: _setStep,
     stopCountdown: _stopCountdown
   };
 })();
 window.Workflow = Workflow;
+window._testWorkflowStep = (step) => Workflow.setStep(step);

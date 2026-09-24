@@ -368,7 +368,12 @@ body {
   <?php if (empty($strip) && empty($photos)): ?>
   <!-- Error State -->
   <div class="err-state">
-    <div class="err-icon">🔍</div>
+    <div class="err-icon">
+      <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+    </div>
     <p>Hasil foto tidak ditemukan.<br>Pastikan link QR Code Anda benar.</p>
   </div>
   <?php else: ?>
@@ -376,7 +381,7 @@ body {
   <!-- ── Photo Strip ─────────────────────────────── -->
   <?php if ($strip): ?>
   <section class="section" style="animation-delay:0.05s">
-    <p class="section-label">📸 Photo Strip</p>
+    <p class="section-label">Photo Strip</p>
     <div class="card strip-card">
       <div class="strip-preview-wrap">
         <img class="strip-img"
@@ -409,7 +414,7 @@ body {
   <!-- ── Individual Photos ───────────────────────── -->
   <?php if (!empty($photos)): ?>
   <section class="section" style="animation-delay:0.12s">
-    <p class="section-label">🖼 Foto Individual</p>
+    <p class="section-label">Foto Individual</p>
     <div class="photos-grid">
       <?php
       $photoList = [
@@ -452,7 +457,7 @@ body {
   <!-- ── GIF Animation ───────────────────────────── -->
   <?php if ($gif): ?>
   <section class="section" style="animation-delay:0.2s">
-    <p class="section-label">🎬 Animasi GIF</p>
+    <p class="section-label">Animasi GIF</p>
     <div class="card gif-card">
       <div class="gif-preview-wrap">
         <img src="<?= htmlspecialchars($gif) ?>"
@@ -482,7 +487,7 @@ body {
   <?php endif; ?>
 
   <footer class="site-footer">
-    Photobooth Undersea &bull; Dibuat dengan ❤️ &bull; <?= date('Y') ?>
+    Photobooth Undersea &bull; <?= date('Y') ?>
   </footer>
 
 </div><!-- /page -->
