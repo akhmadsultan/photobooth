@@ -8,28 +8,28 @@ const Gesture = (() => {
   const ev = new U.Emitter();
 
   const CFG = {
-    holdMs:      window.PB_CFG?.holdMs     || 1500,
-    cooldownMs:  window.PB_CFG?.cooldownMs || 2500,
-    detectConf:  .50,   // FIX: was .70 — too strict for normal lighting
-    trackConf:   .50,   // FIX: was .60
+    holdMs: window.PB_CFG?.holdMs || 1500,
+    cooldownMs: window.PB_CFG?.cooldownMs || 2500,
+    detectConf: .50,   // FIX: was .70 — too strict for normal lighting
+    trackConf: .50,   // FIX: was .60
     pinchThresh: 55,   // canvas-px — thumb+index distance to count as pinch
   };
 
   const state = {
-    running:false, enabled:true, paused:false,
-    holdStart:null, holdProg:0,
-    lastTrigger:0, trigCount:0,
-    smoothConf:0,
-    hands:null, cam:null,
+    running: false, enabled: true, paused: false,
+    holdStart: null, holdProg: 0,
+    lastTrigger: 0, trigCount: 0,
+    smoothConf: 0,
+    hands: null, cam: null,
     /* Latest computed gesture — read by Stickers each frame */
     gesture: {
       mode: 'none',        // 'none'|'point'|'pinch'|'vsign'
-      indexTip:  null,     // {x,y} canvas px (mirrored to display)
-      pinchMid:  null,     // {x,y} midpoint thumb+index (display coords)
+      indexTip: null,     // {x,y} canvas px (mirrored to display)
+      pinchMid: null,     // {x,y} midpoint thumb+index (display coords)
       pinchDist: 0,        // px between thumb and index in canvas space
       isPointing: false,
       isPinching: false,
-      isVSign:    false,
+      isVSign: false,
     },
     smoothCoords: {
       indexTip: null,
@@ -38,19 +38,19 @@ const Gesture = (() => {
   };
 
   /* ── Init ──────────────────────────────────────────────── */
-  async function init(videoEl, canvasEl){
-    state.canvas  = canvasEl;
-    state.ctx     = canvasEl.getContext('2d');
+  async function init(videoEl, canvasEl) {
+    state.canvas = canvasEl;
+    state.ctx = canvasEl.getContext('2d');
     state.videoEl = videoEl;
 
     state.hands = new Hands({
       locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${f}`
     });
     state.hands.setOptions({
-      maxNumHands:            1,
-      modelComplexity:        1,
+      maxNumHands: 1,
+      modelComplexity: 1,
       minDetectionConfidence: CFG.detectConf,
-      minTrackingConfidence:  CFG.trackConf
+      minTrackingConfidence: CFG.trackConf
     });
 
     // FIX: emit 'ready' only after model is actually initialized (first result fires)
@@ -75,7 +75,7 @@ const Gesture = (() => {
     // with the background video decoder (which causes video freeze).
     // After start page is dismissed, ramp up to ~30 fps (full gesture).
     const FPS_START_PAGE = 8;   // fps while video bg is visible
-    const FPS_FULL       = 30;  // fps after start page gone
+    const FPS_FULL = 30;  // fps after start page gone
     let lastSend = 0;
 
     const loop = async () => {
@@ -83,7 +83,7 @@ const Gesture = (() => {
 
       const now = performance.now();
       const onStartPage = !!document.getElementById('startPage');
-      const targetFps   = onStartPage ? FPS_START_PAGE : FPS_FULL;
+      const targetFps = onStartPage ? FPS_START_PAGE : FPS_FULL;
       const minInterval = 1000 / targetFps;
 
       if (state.enabled && !state.paused && state.videoEl?.readyState >= 2) {
@@ -105,67 +105,135 @@ const Gesture = (() => {
   function onResults(res) {
     const cvs = state.canvas;
     if (!cvs) return;
-    const targetW = state.videoEl?.videoWidth  || 640;
+    const targetW = state.videoEl?.videoWidth || 640;
     const targetH = state.videoEl?.videoHeight || 480;
     if (cvs.width !== targetW || cvs.height !== targetH) {
-      cvs.width  = targetW;
+      cvs.width = targetW;
       cvs.height = targetH;
     }
-    const ctx  = state.ctx;
+    const ctx = state.ctx;
     ctx.clearRect(0, 0, cvs.width, cvs.height);
 
     // Reset gesture state
     const g = state.gesture;
     const wasPinching = g.isPinching; // Save previous state for hysteresis
-    g.mode       = 'none';
-    g.indexTip   = null;
-    g.pinchMid   = null;
-    g.pinchDist  = 0;
+    g.mode = 'none';
+    g.indexTip = null;
+    g.pinchMid = null;
+    g.pinchDist = 0;
     g.isPointing = false;
     g.isPinching = false;
-    g.isVSign    = false;
+    g.isVSign = false;
 
+    let rawIndexTip = null;
+    let rawPinchMid = null;
+    let rawPinchDist = 0;
     let palmDetected = false, bestConf = 0;
 
     if (res.multiHandLandmarks?.length) {
       for (let h = 0; h < res.multiHandLandmarks.length; h++) {
         const lm = res.multiHandLandmarks[h];
+        const indexTipPx = { x: lm[8].x * cvs.width, y: lm[8].y * cvs.height };
 
-        // Open Palm Up — solely for shutter trigger
-        const palm = _detectOpenPalm(lm, cvs.width, cvs.height);
-        if (palm.isOpen) { 
-          palmDetected = true; 
-          bestConf = Math.max(bestConf, palm.conf); 
+        // 1. Detect specific interaction gestures first (Pointing, Pinch, V-Sign)
+        const ptG    = _detectPointing(lm, cvs.width, cvs.height);
+        const pinchG = _detectPinch(lm, cvs.width, cvs.height, wasPinching);
+        const vG     = _detectVSign(lm, cvs.width, cvs.height);
+
+        // Check if any interactive sticker/UI gesture is currently active
+        const isOtherGestureActive = vG.isVSign || pinchG.isPinching || ptG.isPointing;
+
+        // 2. Open Palm (shutter trigger) is ONLY allowed if no other gesture is active
+        let palm = { isOpen: false, conf: 0 };
+        if (!isOtherGestureActive) {
+          palm = _detectOpenPalm(lm, cvs.width, cvs.height);
+          if (palm.isOpen) {
+            palmDetected = true;
+            bestConf = Math.max(bestConf, palm.conf);
+          }
         }
+
+        // Determine active mode (priority: V-Sign > Pinch > Point > Fallback Pointing)
+        if (vG.isVSign) {
+          g.mode      = 'vsign';
+          g.isVSign   = true;
+          rawIndexTip = vG.indexTip;
+        } else if (pinchG.isPinching) {
+          g.mode       = 'pinch';
+          g.isPinching = true;
+          rawPinchMid  = pinchG.mid;
+          rawPinchDist = pinchG.dist;
+          rawIndexTip  = pinchG.indexTip;
+        } else if (ptG.isPointing) {
+          g.mode       = 'point';
+          g.isPointing = true;
+          rawIndexTip  = ptG.indexTip;
+        } else if (!palm.isOpen) {
+          // General pointing fallback when hand is in view (unless doing Open Palm)
+          g.mode       = 'point';
+          g.isPointing = true;
+          rawIndexTip  = indexTipPx;
+        }
+
+        // Apply adaptive smoothing filter to eliminate jitter
+        state.smoothCoords.indexTip = _smoothPoint(state.smoothCoords.indexTip, rawIndexTip, 0.30, 1.0);
+        state.smoothCoords.pinchMid = _smoothPoint(state.smoothCoords.pinchMid, rawPinchMid, 0.30, 1.0);
+
+        g.indexTip = state.smoothCoords.indexTip;
+        g.pinchMid = state.smoothCoords.pinchMid || state.smoothCoords.indexTip;
+        g.pinchDist = rawPinchDist;
+
+        // Draw cursor indicator on gesture canvas
+        _drawCursor(ctx, g);
 
         // Draw confidence arc & hold ring near wrist
         _drawConfArc(ctx, lm, cvs.width, cvs.height, palm.conf, palm.isOpen);
       }
+    } else {
+      state.smoothCoords.indexTip = null;
+      state.smoothCoords.pinchMid = null;
     }
 
     state.smoothConf += .3 * ((palmDetected ? bestConf : 0) - state.smoothConf);
     _updateHold(palmDetected, bestConf, Date.now());
 
     ev.emit('frame', {
-      detected:   palmDetected,
-      conf:       state.smoothConf,
-      holdProg:   state.holdProg,
-      mode:       'none',
-      indexTip:   null,
-      pinchMid:   null,
-      pinchDist:  0,
-      isPointing: false,
-      isPinching: false,
-      isVSign:    false,
+      detected: palmDetected,
+      conf: state.smoothConf,
+      holdProg: state.holdProg,
+      mode: g.mode,
+      indexTip: g.indexTip,
+      pinchMid: g.pinchMid,
+      pinchDist: g.pinchDist,
+      isPointing: g.isPointing,
+      isPinching: g.isPinching,
+      isVSign: g.isVSign,
     });
+  }
+
+  /* ── Adaptive Smoothing Filter (Anti-Jitter / Noise Suppression) ── */
+  function _smoothPoint(prev, current, baseAlpha = 0.30, deadzone = 1.0) {
+    if (!current) return null;
+    if (!prev) return { x: current.x, y: current.y };
+    const dx = current.x - prev.x;
+    const dy = current.y - prev.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist < deadzone) return { x: prev.x, y: prev.y };
+
+    const alpha = Math.min(0.80, baseAlpha + (dist / 60) * 0.50);
+    return {
+      x: prev.x + dx * alpha,
+      y: prev.y + dy * alpha
+    };
   }
 
   /* ── Open palm UP (shutter trigger only) ─────────────────── */
   function _detectOpenPalm(lm, cw, ch) {
-    const pt   = i => ({ x: lm[i].x * cw, y: lm[i].y * ch });
+    const pt = i => ({ x: lm[i].x * cw, y: lm[i].y * ch });
     const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
     const wrist = pt(0);
-    const fingers = [[8,5],[12,9],[16,13],[20,17]];
+    const fingers = [[8, 5], [12, 9], [16, 13], [20, 17]];
     let ext = 0;
     let pointingUp = 0;
 
@@ -174,34 +242,33 @@ const Gesture = (() => {
       const pMcp = pt(mcp);
       const td = dist(pTip, wrist), md = dist(pMcp, wrist);
       if (td / Math.max(md, .1) > 1.22) ext++;
-      // Palm Up: finger tip must be higher than MCP (smaller Y in screen coords)
       if (pTip.y < pMcp.y) pointingUp++;
     }
 
-    const thumbSpread = dist(pt(4), pt(5)) / Math.max(dist(wrist, pt(5)), .1) > .50;
-    // Middle fingertip must be higher than wrist (hand oriented upward)
+    const thumbSpread = dist(pt(4), pt(5)) / Math.max(dist(wrist, pt(5)), .1) > .45;
     const isUpright = pt(12).y < (wrist.y - 25);
 
-    const isOpenPalmUp = ext >= 3 && thumbSpread && pointingUp >= 3 && isUpright;
-    const conf   = isOpenPalmUp ? U.clamp((ext / 4) * .85 + (thumbSpread ? .15 : 0), 0.5, 1) : 0;
+    // Requires upright 5-finger open palm
+    const isOpenPalmUp = ext >= 3 && pointingUp >= 3 && thumbSpread && isUpright;
+    const conf = isOpenPalmUp ? U.clamp((ext / 4) * .85 + (thumbSpread ? .15 : 0), 0.5, 1) : 0;
     return { isOpen: isOpenPalmUp, conf };
   }
 
-  /* ── Pointing ☝ — only index finger extended ────────────── */
+  /* ── Pointing ☝ — index finger extended ────────────── */
   function _detectPointing(lm, cw, ch) {
-    const pt   = i => ({ x: lm[i].x * cw, y: lm[i].y * ch });
+    const pt = i => ({ x: lm[i].x * cw, y: lm[i].y * ch });
     const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
     const wrist = pt(0);
 
-    const indexExt = dist(pt(8), wrist) / Math.max(dist(pt(5), wrist), .1) > 1.35;
-    const others   = [[12,9],[16,13],[20,17]];
+    const indexExt = dist(pt(8), wrist) / Math.max(dist(pt(5), wrist), .1) > 1.20;
+    const others = [[12, 9], [16, 13], [20, 17]];
     let curled = 0;
     for (const [tip, mcp] of others) {
-      if (dist(pt(tip), wrist) / Math.max(dist(pt(mcp), wrist), .1) < 1.2) curled++;
+      if (dist(pt(tip), wrist) / Math.max(dist(pt(mcp), wrist), .1) < 1.25) curled++;
     }
     return {
-      isPointing: indexExt && curled >= 2,
-      indexTip:   pt(8)
+      isPointing: indexExt && curled >= 1,
+      indexTip: pt(8)
     };
   }
 
@@ -211,15 +278,13 @@ const Gesture = (() => {
     const index = { x: lm[8].x * cw, y: lm[8].y * ch };
     const wrist = { x: lm[0].x * cw, y: lm[0].y * ch };
     const indexMcp = { x: lm[5].x * cw, y: lm[5].y * ch };
-    
-    // Hand size reference (wrist to index MCP)
+
     const refSize = Math.max(Math.hypot(indexMcp.x - wrist.x, indexMcp.y - wrist.y), 10);
-    const dist  = Math.hypot(index.x - thumb.x, index.y - thumb.y);
-    
-    // Hysteresis: if already pinching, use a looser threshold so it doesn't drop easily
-    const threshRatio = wasPinching ? 0.40 : 0.25;
-    const threshAbs   = wasPinching ? 40 : 20;
-    
+    const dist = Math.hypot(index.x - thumb.x, index.y - thumb.y);
+
+    const threshRatio = wasPinching ? 0.45 : 0.35;
+    const threshAbs = wasPinching ? 60 : 45;
+
     const isPinching = (dist / refSize) < threshRatio || dist < threshAbs;
 
     return {
@@ -231,19 +296,19 @@ const Gesture = (() => {
     };
   }
 
-  /* ── V-sign ✌ — index + middle up, ring + pinky curled ──── */
+  /* ── V-sign ✌ — index + middle up ────────────────────────── */
   function _detectVSign(lm, cw, ch) {
-    const pt   = i => ({ x: lm[i].x * cw, y: lm[i].y * ch });
+    const pt = i => ({ x: lm[i].x * cw, y: lm[i].y * ch });
     const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
     const wrist = pt(0);
 
-    const idxExt = dist(pt(8),  wrist) / Math.max(dist(pt(5),  wrist), .1) > 1.35;
-    const midExt = dist(pt(12), wrist) / Math.max(dist(pt(9),  wrist), .1) > 1.35;
-    const rngCrl = dist(pt(16), wrist) / Math.max(dist(pt(13), wrist), .1) < 1.15;
-    const pnkCrl = dist(pt(20), wrist) / Math.max(dist(pt(17), wrist), .1) < 1.15;
+    const idxExt = dist(pt(8), wrist) / Math.max(dist(pt(5), wrist), .1) > 1.20;
+    const midExt = dist(pt(12), wrist) / Math.max(dist(pt(9), wrist), .1) > 1.20;
+    const rngCrl = dist(pt(16), wrist) / Math.max(dist(pt(13), wrist), .1) < 1.25;
+    const pnkCrl = dist(pt(20), wrist) / Math.max(dist(pt(17), wrist), .1) < 1.25;
 
     return {
-      isVSign:  idxExt && midExt && rngCrl && pnkCrl,
+      isVSign: idxExt && midExt && rngCrl && pnkCrl,
       indexTip: pt(8)
     };
   }
@@ -254,9 +319,9 @@ const Gesture = (() => {
     const x = g.indexTip.x, y = g.indexTip.y;
 
     let color, r;
-    if      (g.isVSign)    { color = 'rgba(247,108,108,0.9)'; r = 10; }
-    else if (g.isPinching) { color = 'rgba(46,207,176,0.9)';  r = 11; }
-    else if (g.isPointing) { color = 'rgba(255,255,255,0.88)'; r = 7;  }
+    if (g.isVSign) { color = 'rgba(247,108,108,0.9)'; r = 10; }
+    else if (g.isPinching) { color = 'rgba(46,207,176,0.9)'; r = 11; }
+    else if (g.isPointing) { color = 'rgba(255,255,255,0.88)'; r = 7; }
     else return;
 
     ctx.save();
@@ -279,20 +344,20 @@ const Gesture = (() => {
     const wx = lm[0].x * cw, wy = lm[0].y * ch;
     const r = 22, tau = Math.PI * 2;
     ctx.beginPath();
-    ctx.arc(wx, wy, r, -Math.PI/2, -Math.PI/2 + tau);
+    ctx.arc(wx, wy, r, -Math.PI / 2, -Math.PI / 2 + tau);
     ctx.strokeStyle = 'rgba(255,255,255,.18)';
     ctx.lineWidth = 3; ctx.lineCap = 'round';
     ctx.stroke();
     if (conf > .05) {
       ctx.beginPath();
-      ctx.arc(wx, wy, r, -Math.PI/2, -Math.PI/2 + conf * tau);
+      ctx.arc(wx, wy, r, -Math.PI / 2, -Math.PI / 2 + conf * tau);
       ctx.strokeStyle = isOpen ? 'rgba(45,138,78,.9)' : 'rgba(28,79,216,.9)';
       ctx.lineWidth = 3; ctx.lineCap = 'round';
       ctx.stroke();
     }
     if (state.holdProg > 0) {
       ctx.beginPath();
-      ctx.arc(wx, wy, r + 6, -Math.PI/2, -Math.PI/2 + state.holdProg * tau);
+      ctx.arc(wx, wy, r + 6, -Math.PI / 2, -Math.PI / 2 + state.holdProg * tau);
       ctx.strokeStyle = 'rgba(230,50,36,.9)';
       ctx.lineWidth = 2.5; ctx.lineCap = 'round';
       ctx.stroke();
@@ -321,15 +386,15 @@ const Gesture = (() => {
   }
 
   /* ── Controls ───────────────────────────────────────────── */
-  function setEnabled(v)    { state.enabled = v; if (!v) { state.holdStart = null; state.holdProg = 0; } }
-  function pause()          { state.paused = true; }
-  function resume()         { state.paused = false; }
-  function resetCooldown()  { state.lastTrigger = 0; }
-  function stop()           { state.running = false; state.cam?.stop(); }
-  function getHoldProg()    { return state.holdProg; }
+  function setEnabled(v) { state.enabled = v; if (!v) { state.holdStart = null; state.holdProg = 0; } }
+  function pause() { state.paused = true; }
+  function resume() { state.paused = false; }
+  function resetCooldown() { state.lastTrigger = 0; }
+  function stop() { state.running = false; state.cam?.stop(); }
+  function getHoldProg() { return state.holdProg; }
   function getLandmarkState() { return { ...state.gesture }; }
 
-  function on(e, f)  { ev.on(e, f); }
+  function on(e, f) { ev.on(e, f); }
   function off(e, f) { ev.off(e, f); }
 
   return { init, setEnabled, pause, resume, resetCooldown, stop, getHoldProg, getLandmarkState, on, off, CFG };

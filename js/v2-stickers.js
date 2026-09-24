@@ -14,26 +14,12 @@ const Stickers = (() => {
 
   /* ── Catalog ─────────────────────────────────────────────── */
   const CATALOG = [
-    {
-      id: 'crown', label: 'Crown', type: 'svg',
-      svg: `<svg viewBox="0 0 54 40" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4 36 L4 16 L16 28 L27 6 L38 28 L50 16 L50 36 Z" fill="#f7d716"/>
-        <path d="M4 36 L4 16 L16 28 L27 6 L38 28 L50 16 L50 36 Z"
-              fill="none" stroke="#d4a800" stroke-width="2"/>
-        <line x1="4" y1="36" x2="50" y2="36" stroke="#d4a800" stroke-width="2.5" stroke-linecap="round"/>
-        <circle cx="27" cy="28" r="4" fill="#f76c6c"/>
-        <circle cx="13" cy="30" r="2.5" fill="#2ecfb0"/>
-        <circle cx="41" cy="30" r="2.5" fill="#2ecfb0"/>
-        <circle cx="27" cy="6"  r="3"   fill="#f5e6b2"/>
-        <path d="M20 14 L18 10 M27 10 L27 6 M34 14 L36 10"
-              stroke="rgba(255,255,255,.7)" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>`
-    },
-    { id: 'fish',    label: 'Fish',    type: 'img', src: 'assets/stickers/fish.png' },
-    { id: 'bubble',  label: 'Bubble',  type: 'img', src: 'assets/stickers/bubble.png' },
-    { id: 'seaweed', label: 'Seaweed', type: 'img', src: 'assets/stickers/seaweed.png' },
-    { id: 'shell',   label: 'Shell',   type: 'img', src: 'assets/stickers/shell.png' },
-    { id: 'squid',   label: 'Squid',   type: 'img', src: 'assets/stickers/squid.png' }
+    { id: 'pulau1', label: 'Pulau 1', type: 'img', src: 'assets/stickers/pulau1.png' },
+    { id: 'pulau2', label: 'Pulau 2', type: 'img', src: 'assets/stickers/pulau2.png' },
+    { id: 'pulau3', label: 'Pulau 3', type: 'img', src: 'assets/stickers/pulau3.png' },
+    { id: 'pulau4', label: 'Pulau 4', type: 'img', src: 'assets/stickers/pulau4.png' },
+    { id: 'mascot', label: 'Mascot',  type: 'img', src: 'assets/stickers/mascot.png' },
+    { id: 'crown',  label: 'Crown',   type: 'img', src: 'assets/stickers/crown.png' }
   ];
 
   /* ── Constants ───────────────────────────────────────────── */
@@ -165,6 +151,10 @@ const Stickers = (() => {
     } else if (isPinching) {
       _cancelVDelete();
       _handlePinch(midPx);
+    } else if (isPointing) {
+      _cancelPinch();
+      _cancelVDelete();
+      _handlePoint(fingerPx);
     } else {
       _cancelPinch();
       _cancelVDelete();
@@ -177,8 +167,8 @@ const Stickers = (() => {
     if (!el) return;
     const MAP = {
       none:  ['Arahkan jari', ''],
-      point: ['Tunjuk icon', 'mode-point'],
-      pinch: ['Grab stiker', 'mode-grab'],
+      point: ['Tunjuk dengan kursor ungu', 'mode-point'],
+      pinch: ['Grab / Scale stiker', 'mode-grab'],
       vsign: ['Hapus stiker', 'mode-delete'],
     };
     const [text, cls] = MAP[mode] || MAP.none;
@@ -186,7 +176,21 @@ const Stickers = (() => {
     el.className   = 'shelf-mode-hint' + (cls ? ' ' + cls : '');
   }
 
-  /* ── POINT → DWELL → SPAWN ───────────────────────────────── */
+  /* ── POINT → SELECT STICKER ON CANVAS ─────────────────────── */
+  function _handlePoint(fingerPx) {
+    if (!fingerPx) return;
+    /* Over sticker on canvas → select it */
+    for (let i = stickers.length - 1; i >= 0; i--) {
+      const s = stickers[i];
+      if (!s.el) continue;
+      const cx = s.x + s.size / 2;
+      const cy = s.y + s.size / 2;
+      if (Math.hypot(fingerPx.x - cx, fingerPx.y - cy) < s.size / 2 + 15) {
+        _selectSticker(s);
+        break;
+      }
+    }
+  }
 
 
   /* ── PINCH → MOVE OR RESIZE ──────────────────────────────── */

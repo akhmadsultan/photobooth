@@ -354,7 +354,8 @@ const App = (() => {
 
   async function _onComplete(){
     S.phase='preview';
-    Gesture.setEnabled(false);
+    Gesture.setEnabled(true);
+    Gesture.resume();
     _setStatus('active','Foto Selesai! Periksa Preview');
     window.SFX?.success?.();
 

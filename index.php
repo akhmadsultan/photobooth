@@ -465,7 +465,7 @@ function StickerAdd(id) {
   <div class="pbqr-inner">
 
     <!-- Close button -->
-    <button class="pbqr-close" id="pbBtnCloseQR" aria-label="Tutup">&times;</button>
+    <button class="pbqr-close g-click" id="pbBtnCloseQR" aria-label="Tutup">&times;</button>
 
     <!-- Header -->
     <div class="pbqr-header">
@@ -484,7 +484,7 @@ function StickerAdd(id) {
 
     <!-- Action Buttons -->
     <div class="pbqr-actions">
-      <button class="pbqr-btn pbqr-btn-secondary" id="pbBtnDownloadQR">
+      <button class="pbqr-btn pbqr-btn-secondary g-click" id="pbBtnDownloadQR">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
           <polyline points="15 3 21 3 21 9"></polyline>
