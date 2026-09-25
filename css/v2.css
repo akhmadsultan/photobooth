@@ -1074,8 +1074,14 @@ body {
 ::-webkit-scrollbar-thumb { background:rgba(199,125,255,.25); border-radius:2px; }
 
 /* ═══════════════════════════════════════════════════════════
-   STICKER SYSTEM
+   STICKER SYSTEM (Nonaktif — disembunyikan tanpa dihapus)
    ═══════════════════════════════════════════════════════════ */
+
+.sticker-shelf,
+.sticker-overlay,
+#btnClearStickers {
+  display: none !important;
+}
 
 .sticker-block { flex-shrink: 0; }
 

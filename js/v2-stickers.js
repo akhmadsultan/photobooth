@@ -49,9 +49,20 @@ const Stickers = (() => {
   /* Dwell state per icon { defId → { startTime, spawned, progEl, CIRC } } */
   const dwell = {};
 
+  /* ── Feature Toggle (Deactivated by default) ─────────────── */
+  let _enabled = false;
+
   /* ── Init ────────────────────────────────────────────────── */
   function init(overlayElement) {
     overlayEl = overlayElement;
+    if (!_enabled) {
+      if (overlayEl) overlayEl.style.display = 'none';
+      const shelf = document.getElementById('stickerShelf');
+      if (shelf) shelf.style.display = 'none';
+      const btnClear = document.getElementById('btnClearStickers');
+      if (btnClear) btnClear.style.display = 'none';
+      return;
+    }
     _renderShelf();
     _bindMouseEvents();
     _bindGestureEvents();
@@ -513,7 +524,7 @@ const Stickers = (() => {
 
   /* ── Burn stickers to canvas ─────────────────────────────── */
   async function burnToCanvasAsync(canvas) {
-    if (!stickers.length) return;
+    if (!_enabled || !stickers.length) return;
     const frameEl = overlayEl || document.getElementById('stickerOverlay');
     if (!frameEl) return;
     const fr  = frameEl.getBoundingClientRect();
@@ -577,9 +588,30 @@ const Stickers = (() => {
     if (def) _addSticker(def);
   }
 
-  function renderPicker() { _renderShelf(); }
+  function renderPicker() {
+    if (!_enabled) return;
+    _renderShelf();
+  }
 
-  return { init, clearAll, burnToCanvasAsync, count, addById, renderPicker, CATALOG };
+  function setEnabled(flag) {
+    _enabled = !!flag;
+    if (overlayEl) overlayEl.style.display = _enabled ? 'block' : 'none';
+    const shelf = document.getElementById('stickerShelf');
+    if (shelf) shelf.style.display = _enabled ? 'flex' : 'none';
+    const btnClear = document.getElementById('btnClearStickers');
+    if (btnClear) btnClear.style.display = _enabled ? 'inline-block' : 'none';
+    if (_enabled) {
+      _renderShelf();
+      _bindMouseEvents();
+      _bindGestureEvents();
+    }
+  }
+
+  function isEnabled() {
+    return _enabled;
+  }
+
+  return { init, clearAll, burnToCanvasAsync, count, addById, renderPicker, setEnabled, isEnabled, CATALOG };
 })();
 
 window.Stickers = Stickers;

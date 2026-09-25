@@ -121,6 +121,18 @@ $sid = $_SESSION['pb_session'];
             <div class="sel-preview" style="background-image: url('assets/frames/frame3.png'); background-size: cover; background-position: center; border-radius: 6px; border: 1.5px solid rgba(255,255,255,.5);"></div>
             <span>World 3</span>
           </button>
+          <button class="sel-item g-click" data-frame="frame4">
+            <div class="sel-preview" style="background-image: url('assets/frames/Frame4.png'); background-size: cover; background-position: center; border-radius: 6px; border: 1.5px solid rgba(255,255,255,.5);"></div>
+            <span>World 4</span>
+          </button>
+          <button class="sel-item g-click" data-frame="frame5">
+            <div class="sel-preview" style="background-image: url('assets/frames/Frame5.png'); background-size: cover; background-position: center; border-radius: 6px; border: 1.5px solid rgba(255,255,255,.5);"></div>
+            <span>World 5</span>
+          </button>
+          <button class="sel-item g-click" data-frame="frame6">
+            <div class="sel-preview" style="background-image: url('assets/frames/Frame6.png'); background-size: cover; background-position: center; border-radius: 6px; border: 1.5px solid rgba(255,255,255,.5);"></div>
+            <span>World 6</span>
+          </button>
         </div>
       </section>
 
@@ -188,8 +200,8 @@ $sid = $_SESSION['pb_session'];
         <canvas id="gestureCanvas" class="gesture-canvas"></canvas>
         <canvas id="captureCanvas" style="display:none"></canvas>
 
-        <!-- ★ Sticker Shelf — top inside camera frame ★ -->
-        <div class="sticker-shelf" id="stickerShelf">
+        <!-- ★ Sticker Shelf — top inside camera frame (Nonaktif) ★ -->
+        <div class="sticker-shelf" id="stickerShelf" style="display:none;">
           <!-- Left group: 3 icons -->
           <div class="shelf-group shelf-group-left" id="shelfGroupLeft"></div>
 
@@ -203,8 +215,8 @@ $sid = $_SESSION['pb_session'];
           <div class="shelf-group shelf-group-right" id="shelfGroupRight"></div>
         </div>
 
-        <!-- Sticker overlay inside camera -->
-        <div class="sticker-overlay" id="stickerOverlay"></div>
+        <!-- Sticker overlay inside camera (Nonaktif) -->
+        <div class="sticker-overlay" id="stickerOverlay" style="display:none;"></div>
 
         <!-- Countdown -->
         <div class="cd-layer" id="cdLayer" style="display:none">
@@ -257,7 +269,7 @@ $sid = $_SESSION['pb_session'];
 
         </div><!-- /cam-btns-row -->
 
-        <!-- Actions under capture: Undo & Clear stickers -->
+        <!-- Actions under capture: Undo (Clear stickers nonaktif) -->
         <div class="cam-actions-bottom">
           <button class="stk-clear-inline btn-undo-pill g-click" id="btnRetake" title="Undo foto terakhir" style="display:none;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
@@ -266,7 +278,7 @@ $sid = $_SESSION['pb_session'];
             </svg>
             <span>Undo Foto</span>
           </button>
-          <button class="stk-clear-inline g-click" id="btnClearStickers">Clear stickers</button>
+          <button class="stk-clear-inline g-click" id="btnClearStickers" style="display:none;">Clear stickers</button>
         </div>
 
       </div><!-- /cam-controls -->

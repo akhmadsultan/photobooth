@@ -21,12 +21,18 @@ const Strip = (() => {
   const presetFrameUrls = {
     frame1: 'assets/frames/frame1.png',
     frame2: 'assets/frames/frame2.png',
-    frame3: 'assets/frames/frame3.png'
+    frame3: 'assets/frames/frame3.png',
+    frame4: 'assets/frames/Frame4.png',
+    frame5: 'assets/frames/Frame5.png',
+    frame6: 'assets/frames/Frame6.png'
   };
   const presetFrameImgs = {
     frame1: null,
     frame2: null,
-    frame3: null
+    frame3: null,
+    frame4: null,
+    frame5: null,
+    frame6: null
   };
 
   async function preloadPresetFrames() {
@@ -180,6 +186,9 @@ const Strip = (() => {
       case 'frame1':
       case 'frame2':
       case 'frame3':
+      case 'frame4':
+      case 'frame5':
+      case 'frame6':
       case 'upload':{
         if (frameStyle === 'upload' && uploadSettings.mode === 'background' && uploadSettings.img) {
           ctx.drawImage(uploadSettings.img, 0, 0, FRAME_W, TOTAL_H);
@@ -306,6 +315,9 @@ const Strip = (() => {
       case 'frame1':
       case 'frame2':
       case 'frame3':
+      case 'frame4':
+      case 'frame5':
+      case 'frame6':
       case 'upload':{
         _fitImage(ctx,img,x,y,w,h);
         ctx.restore();
